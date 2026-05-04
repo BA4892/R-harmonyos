@@ -1,0 +1,24 @@
+#!/data/service/hnp/bin/bash
+# R for HarmonyOS launcher
+# Usage: ./bin/rharmonyos [R arguments...]
+#
+# Sets up the HarmonyOS-compatible environment needed by R:
+#   - Writable temp directory (no /tmp on HarmonyOS)
+#   - Standard Unix tool paths
+#   - Library paths for gfortran and dependencies
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+BUILD_DIR="${DIR}/build"
+export R_HOME_DIR="$BUILD_DIR"
+export R_HOME="$BUILD_DIR"
+export TMPDIR="${TMPDIR:-${BUILD_DIR}/tmp}"
+mkdir -p "$TMPDIR"
+export PATH="/usr/bin:/bin:/data/service/hnp/bin:$PATH"
+export LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH}"
+
+if [ ! -f "${BUILD_DIR}/bin/R" ]; then
+    echo "Error: R not built yet. Run ./configure-R.sh && cd build && make first."
+    exit 1
+fi
+
+exec "${BUILD_DIR}/bin/R" "$@"

@@ -1,0 +1,47 @@
+# HarmonyOS R initialization.
+# 1. Fix missing base package .Call symbol registration.
+#    Cross-compilation skipped generating src/library/base/init.c,
+#    so functions like R_addTaskCallback are NOT registered via
+#    R_registerRoutines(). This block loads libfixbase.so which
+#    registers them. Then patches the three base functions to use
+#    PACKAGE="fixbase" when calling .Call.
+# 2. Load rharmonyos package for install.package() support.
+local({
+  libfix <- file.path(R.home(), "lib", "fixbase.so")
+  if (file.exists(libfix)) {
+    tryCatch({
+      dyn.load(libfix)
+      # Patch base functions to use registered routines in fixbase.
+      # Use unlockBinding+assign because assignInNamespace has issues
+      # with the base namespace in R 4.4.3.
+      ns <- asNamespace("base")
+      unlockBinding("addTaskCallback", ns)
+      assign("addTaskCallback", function(f, data = NULL, name = character()) {
+        if (!is.function(f)) stop("handler must be a function")
+        val <- .Call("R_addTaskCallback", f, data, !missing(data),
+                      as.character(name), PACKAGE = "fixbase")
+        val + 1L
+      }, envir = ns)
+      lockBinding("addTaskCallback", ns)
+      unlockBinding("removeTaskCallback", ns)
+      assign("removeTaskCallback", function(id) {
+        if (!is.character(id)) id <- as.integer(id)
+        .Call("R_removeTaskCallback", id, PACKAGE = "fixbase")
+      }, envir = ns)
+      lockBinding("removeTaskCallback", ns)
+      unlockBinding("getTaskCallbackNames", ns)
+      assign("getTaskCallbackNames", function() {
+        .Call("R_getTaskCallbackNames", PACKAGE = "fixbase")
+      }, envir = ns)
+      lockBinding("getTaskCallbackNames", ns)
+    }, error = function(e) {
+      cat("Warning: libfixbase fix failed:", conditionMessage(e), "\n")
+    })
+  }
+
+  if (file.exists(file.path(.Library, "rharmonyos", "R", "rharmonyos"))) {
+    tryCatch(suppressPackageStartupMessages(
+      library(rharmonyos)
+    ), error = function(e) NULL)
+  }
+})

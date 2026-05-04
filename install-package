@@ -1,0 +1,125 @@
+#!/data/service/hnp/bin/bash
+# R Package Installer for HarmonyOS
+# Usage: ./install-package <package_source_dir> [install_dir]
+#
+# Installs an R package from source without requiring child processes
+# (works around seccomp restriction blocking system() calls).
+#
+# Uses tools:::.install_package_description to create proper Meta/package.rds
+# and tools:::makeLazyLoading for lazy-load DB creation.
+
+DIR="$(cd "$(dirname "$0")" && pwd)"
+BUILD_DIR="${DIR}/build"
+export R_HOME_DIR="$BUILD_DIR"
+export R_HOME="$BUILD_DIR"
+export TMPDIR="${TMPDIR:-${BUILD_DIR}/tmp}"
+mkdir -p "$TMPDIR"
+export PATH="/usr/bin:/bin:/data/service/hnp/bin:$PATH"
+export LD_LIBRARY_PATH="${BUILD_DIR}/lib:${LD_LIBRARY_PATH}"
+
+if [ ! -f "${BUILD_DIR}/bin/exec/R" ]; then
+    echo "Error: R not built yet. Run ./configure-R.sh && cd build && make first."
+    exit 1
+fi
+
+if [ $# -lt 1 ]; then
+    echo "Usage: $0 <package_source_dir> [install_dir]"
+    exit 1
+fi
+
+PKG_SRC="$1"
+LIB_DEST="${2:-${BUILD_DIR}/library}"
+
+if [ ! -f "$PKG_SRC/DESCRIPTION" ]; then
+    echo "Error: $PKG_SRC/DESCRIPTION not found"
+    exit 1
+fi
+
+PKG_NAME=$(grep -E "^Package:" "$PKG_SRC/DESCRIPTION" | sed 's/Package:[[:space:]]*//')
+if [ -z "$PKG_NAME" ]; then
+    echo "Error: could not determine package name from DESCRIPTION"
+    exit 1
+fi
+
+echo "Installing package '$PKG_NAME' from $PKG_SRC"
+
+# Copy package source to library
+rm -rf "$LIB_DEST/$PKG_NAME"
+mkdir -p "$LIB_DEST/$PKG_NAME"
+cp -r "$PKG_SRC"/* "$LIB_DEST/$PKG_NAME/"
+echo "  Files copied to $LIB_DEST/$PKG_NAME"
+
+# Install DESCRIPTION metadata (creates Meta/package.rds and Meta/features.rds)
+echo "  Installing DESCRIPTION metadata..."
+"$BUILD_DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
+  "library(tools); tools:::.install_package_description(\"$LIB_DEST/$PKG_NAME\", \"$LIB_DEST/$PKG_NAME\")" \
+  2>&1 | grep -v "^$" | grep -v "^sh:" | grep -v "Warning.*which" | grep -v "During startup" | grep -v "^>"
+
+# Check for R code
+if [ ! -d "$LIB_DEST/$PKG_NAME/R" ] || [ -z "$(ls -A "$LIB_DEST/$PKG_NAME/R/" 2>/dev/null)" ]; then
+    echo "  No R code found. Package installed (metadata only)."
+    echo "Done."
+    exit 0
+fi
+
+# Handle sysdata.rda if present (decompress gzip files; seccomp blocks R's gzfile)
+SYSDATA="$LIB_DEST/$PKG_NAME/R/sysdata.rda"
+if [ -f "$SYSDATA" ]; then
+    if xxd -l 2 "$SYSDATA" 2>/dev/null | grep -q "1f8b"; then
+        echo "  Decompressing sysdata.rda..."
+        mv "$SYSDATA" "${SYSDATA}.gz" && gzip -d "${SYSDATA}.gz" 2>/dev/null
+        if [ ! -f "$SYSDATA" ]; then
+            mv "${SYSDATA}.gz" "$SYSDATA" 2>/dev/null
+        fi
+    fi
+fi
+
+# Concatenate R files in Collate order (if specified), else alphabetical
+R_CONCAT="$LIB_DEST/$PKG_NAME/R/$PKG_NAME"
+if [ ! -f "$R_CONCAT" ]; then
+    echo "  Concatenating R source files..."
+
+    # Parse Collate field from DESCRIPTION (multi-line)
+    COLLATE=$(awk '
+      /^Collate:/ { in_collate=1; sub(/^Collate:[ \t]*/, ""); line=$0 }
+      in_collate && /^[ \t]/ { line=line " " $0 }
+      in_collate && /^[A-Z]/ && !/^Collate:/ { exit }
+      END { if (line) print line }
+    ' "$LIB_DEST/$PKG_NAME/DESCRIPTION" | tr -d "'\"" | tr -s ' \n' ' ')
+
+    if [ -n "$COLLATE" ]; then
+        echo "  Using Collate order"
+        for f in $COLLATE; do
+            ff="$LIB_DEST/$PKG_NAME/R/$f"
+            if [ -f "$ff" ]; then
+                cat "$ff" >> "$R_CONCAT"
+            fi
+        done
+        # Append any .R or .r files not in Collate
+        for f in $(LC_COLLATE=C ls "$LIB_DEST/$PKG_NAME/R/"*.R "$LIB_DEST/$PKG_NAME/R/"*.r 2>/dev/null); do
+            bf=$(basename "$f")
+            case " $COLLATE " in *" $bf "*) ;; *) cat "$f" >> "$R_CONCAT" ;; esac
+        done
+    else
+        echo "  Using alphabetical order"
+        for f in $(LC_COLLATE=C ls "$LIB_DEST/$PKG_NAME/R/"*.R "$LIB_DEST/$PKG_NAME/R/"*.r 2>/dev/null); do
+            cat "$f" >> "$R_CONCAT"
+        done
+    fi
+
+    # Append sysdata loading code if sysdata.rda exists
+    if [ -f "$SYSDATA" ]; then
+        echo "" >> "$R_CONCAT"
+        echo "# Load sysdata (added by install-package for HarmonyOS)" >> "$R_CONCAT"
+        echo '.sysdata_env <- new.env(); load("R/sysdata.rda", envir = .sysdata_env); list2env(as.list(.sysdata_env), envir = topenv()); rm(.sysdata_env)' >> "$R_CONCAT"
+    fi
+fi
+
+# Create lazy-load DB with setwd() for relative path support
+echo "  Running makeLazyLoading..."
+"$BUILD_DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
+  "library(tools); wd <- getwd(); setwd(\"$LIB_DEST/$PKG_NAME\"); tools:::makeLazyLoading(\"$PKG_NAME\", lib.loc = \"$LIB_DEST\", compress = FALSE); setwd(wd)" \
+  2>&1 | grep -v "^$" | grep -v "^sh:" | grep -v "Warning.*which" | grep -v "During startup" | grep -v "^>" | grep -v "^$" | grep -v "^Type" | grep -v "^R is" | grep -v "^Natural" | grep -v "^Copyright" | grep -v "^Platform" | grep -v "^You are"
+
+echo "  Package '$PKG_NAME' installed successfully."
+echo "Done."

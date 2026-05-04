@@ -1,0 +1,35 @@
+# Build artifacts
+build/*
+!build/fix_base.c
+!build/backtrace_stub.c
+!build/etc/
+!build/lib/
+build/etc/*
+!build/etc/Rprofile.site
+!build/etc/Makeconf
+build/lib/*
+!build/lib/fixbase.so
+
+# R source (available from CRAN, download separately)
+src/
+
+# Stray package artifacts
+cli/
+rlang/
+glue/
+farver/
+S7/
+isoband/
+lib/
+share/
+libtest*
+
+# Temp / intermediate
+tmp/
+*.o
+*.lo
+*.la
+
+# OS
+.DS_Store
+Thumbs.db
