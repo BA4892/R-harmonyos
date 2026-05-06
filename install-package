@@ -49,6 +49,21 @@ mkdir -p "$LIB_DEST/$PKG_NAME"
 cp -r "$PKG_SRC"/* "$LIB_DEST/$PKG_NAME/"
 echo "  Files copied to $LIB_DEST/$PKG_NAME"
 
+# Promote inst/ contents to package root (R package convention)
+if [ -d "$LIB_DEST/$PKG_NAME/inst" ]; then
+    echo "  Promoting inst/ contents..."
+    for inst_item in "$LIB_DEST/$PKG_NAME/inst/"* "$LIB_DEST/$PKG_NAME/inst/."*; do
+        base_item=$(basename "$inst_item")
+        [ "$base_item" = "." ] || [ "$base_item" = ".." ] && continue
+        target="$LIB_DEST/$PKG_NAME/$base_item"
+        if [ -e "$target" ]; then
+            rm -rf "$target"
+        fi
+        mv "$inst_item" "$target" 2>/dev/null || true
+    done
+    rm -rf "$LIB_DEST/$PKG_NAME/inst"
+fi
+
 # Install DESCRIPTION metadata (creates Meta/package.rds and Meta/features.rds)
 echo "  Installing DESCRIPTION metadata..."
 "$BUILD_DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
@@ -115,11 +130,81 @@ if [ ! -f "$R_CONCAT" ]; then
     fi
 fi
 
+# Compile native code (C/Fortran) if present
+SRC_DIR="$LIB_DEST/$PKG_NAME/src"
+LIBS_DIR="$LIB_DEST/$PKG_NAME/libs"
+CC="/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang"
+SYSROOT="/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot"
+R_INC="$DIR/include"
+R_LIB="$DIR/lib"
+FC="/storage/Users/currentUser/gfortran-harmonyos/build/gcc/gfortran"
+
+# Parse src/Makevars if present for custom flags
+PKG_CPPFLAGS=""
+PKG_CFLAGS=""
+PKG_FFLAGS=""
+PKG_FCFLAGS=""
+PKG_LIBS=""
+OBJECTS=""
+MAKEVARS="$SRC_DIR/Makevars"
+if [ -f "$MAKEVARS" ]; then
+    while IFS= read -r line; do
+        case "$line" in
+            PKG_CPPFLAGS=*) PKG_CPPFLAGS=$(echo "$line" | sed 's/PKG_CPPFLAGS[[:space:]]*=[[:space:]]*//') ;;
+            PKG_CFLAGS=*)   PKG_CFLAGS=$(echo "$line" | sed 's/PKG_CFLAGS[[:space:]]*=[[:space:]]*//') ;;
+            PKG_FFLAGS=*)   PKG_FFLAGS=$(echo "$line" | sed 's/PKG_FFLAGS[[:space:]]*=[[:space:]]*//') ;;
+            PKG_FCFLAGS=*)  PKG_FCFLAGS=$(echo "$line" | sed 's/PKG_FCFLAGS[[:space:]]*=[[:space:]]*//') ;;
+            PKG_LIBS=*)     PKG_LIBS=$(echo "$line" | sed 's/PKG_LIBS[[:space:]]*=[[:space:]]*//') ;;
+            OBJECTS=*)      OBJECTS=$(echo "$line" | sed 's/OBJECTS[[:space:]]*=[[:space:]]*//') ;;
+            OBJS=*)         OBJECTS=$(echo "$line" | sed 's/OBJS[[:space:]]*=[[:space:]]*//') ;;
+        esac
+    done < "$MAKEVARS"
+fi
+
+C_SRCS=$(find "$SRC_DIR" -maxdepth 1 -name "*.c" 2>/dev/null | sort)
+F_SRCS=$(find "$SRC_DIR" -maxdepth 1 -name "*.f" -o -name "*.f90" -o -name "*.F" -o -name "*.F90" 2>/dev/null | sort)
+if [ -n "$C_SRCS" ] || [ -n "$F_SRCS" ]; then
+    echo "  Compiling native code..."
+    mkdir -p "$LIBS_DIR"
+    C_OBJS=""
+    # Compile C sources
+    for src in $C_SRCS; do
+        base=$(basename "$src" .c)
+        echo "    CC $base.c"
+        $CC -I"$R_INC" --sysroot="$SYSROOT" -fPIC -O2 -g0 $PKG_CPPFLAGS $PKG_CFLAGS -c "$src" -o "$SRC_DIR/$base.o"
+        C_OBJS="$C_OBJS $SRC_DIR/$base.o"
+    done
+    # Compile Fortran sources
+    F_OBJS=""
+    if [ -n "$F_SRCS" ] && [ -x "$FC" ]; then
+        for src in $F_SRCS; do
+            base=$(basename "$src")
+            base_noext=$(echo "$base" | sed 's/\.[fF]\(90\)*$//')
+            echo "    FC $base"
+            $FC -fPIC -O2 -g0 $PKG_FFLAGS $PKG_FCFLAGS -c "$src" -o "$SRC_DIR/$base_noext.o"
+            F_OBJS="$F_OBJS $SRC_DIR/$base_noext.o"
+        done
+    fi
+    # Link shared library
+    ALL_OBJS="$C_OBJS $F_OBJS"
+    if [ -n "$OBJECTS" ]; then
+        ALL_OBJS=""
+        for obj in $OBJECTS; do
+            ALL_OBJS="$ALL_OBJS $SRC_DIR/$obj"
+        done
+    fi
+    echo "    LD $PKG_NAME.so"
+    $CC -shared -fPIC -o "$LIBS_DIR/$PKG_NAME.so" $ALL_OBJS \
+        -L"$R_LIB" -lR $PKG_LIBS --sysroot="$SYSROOT" \
+        -L"$R_LIB" -lmuslstubs
+    echo "    -> $(ls -lh "$LIBS_DIR/$PKG_NAME.so" | awk '{print $5}')"
+fi
+
 # Create lazy-load DB with setwd() for relative path support
 echo "  Running makeLazyLoading..."
-"$BUILD_DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
+"$DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
   "library(tools); wd <- getwd(); setwd(\"$LIB_DEST/$PKG_NAME\"); tools:::makeLazyLoading(\"$PKG_NAME\", lib.loc = \"$LIB_DEST\", compress = FALSE); setwd(wd)" \
-  2>&1 | grep -v "^$" | grep -v "^sh:" | grep -v "Warning.*which" | grep -v "During startup" | grep -v "^>" | grep -v "^$" | grep -v "^Type" | grep -v "^R is" | grep -v "^Natural" | grep -v "^Copyright" | grep -v "^Platform" | grep -v "^You are"
+  2>&1 | grep -v "^sh:" | grep -v "Warning.*which" | grep -v "During startup" | grep -v "^>" | grep -v "^Type" | grep -v "^R is" | grep -v "^Natural" | grep -v "^Copyright" | grep -v "^Platform" | grep -v "^You are"
 
 echo "  Package '$PKG_NAME' installed successfully."
 echo "Done."

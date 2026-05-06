@@ -17,7 +17,9 @@ R 4.4.3 移植到 HarmonyOS (OpenHarmony) 原生平台。
 ├── configure-R.sh        # R 配置脚本
 ├── install-package       # 包安装脚本（便捷包装器）
 ├── rharmonyos            # R 启动包装器（便捷包装器）
-└── doc/                  # 文档
+├── batch-fix-v5.sh       # 批量编译缺失的 .so 文件（针对已有依赖的包）
+├── build-fix-so.sh       # 通用批量编译脚本（含 Makevars 变量展开）
+├── doc/                  # 文档
 ```
 
 ## 构建方法
@@ -125,7 +127,50 @@ HarmonyOS 的 seccomp 安全策略阻止 R 创建子进程，因此 `R CMD INSTA
 - **`library()` pager 报错**：`pager` 命令无法通过子进程执行（seccomp 限制），但不影响 R 的正常使用
 - **`Sys.which("uname")` 警告**：startup 时提示 `which` 未找到，不影响 R 运行
 - **无 Tcl/Tk**：配置时使用 `--without-tcltk`
-- **无 Cairo/PNG/JPEG/TIFF**：配置时使用 `--without-cairo --without-libpng --without-jpeglib --without-libtiff`
+- **Cairo 不支持**：fontconfig 仅在受限的存根中可用，缺少完整的字体匹配功能
 - **无 Java**：配置时使用 `--disable-java`
 - **无 readline**：配置时使用 `--without-readline`
 - **无 X11**：配置时使用 `--without-x`
+
+## 批量编译 R 包 .so 文件
+
+HarmonyOS 使用 seccomp 安全策略，`R CMD INSTALL` 和 `install.packages()` 不可用。安装 R 包后，通常缺少编译后的 `.so` 共享库。使用批量脚本可以编译这些 `.so` 文件。
+
+### 使用方法
+
+```bash
+# 批量编译已知可编译的包
+./batch-fix-v5.sh
+
+# 或针对所有包运行完整编译脚本
+./build-fix-so.sh
+```
+
+### 已编译的包
+
+以下包的 `.so` 文件已通过 `batch-fix-v5.sh` 成功编译：
+
+| 包 | 大小 | 说明 |
+|---|---|---|
+| jsonlite | 78K | JSON 解析（含 bundled yajl） |
+| commonmark | 350K | CommonMark Markdown 渲染（含 bundled cmark-gfm） |
+| brotli | 582K | Brotli 压缩算法（含 bundled enc 静态库） |
+| colourvalues | 1.2M | 颜色值转换（Rcpp） |
+| haven | 463K | 读取 SPSS/Stata/SAS 文件（含 bundled readstat） |
+| parsermd | 1.2M | R Markdown 解析器（Rcpp, Boost Spirit X3, C++17） |
+| lqmm | 18K | 线性分位数混合模型（含 Fortran 代码） |
+| frailtypack | 2.7M | 共享脆弱模型和联合模型（大量 Fortran 代码） |
+| ggforce | 631K | ggplot2 扩展（预编译） |
+| fs | 219K | 文件系统操作（预编译） |
+
+### 常见编译失败原因
+
+| 原因 | 示例包 |
+|---|---|
+| 缺少外部系统库（GDAL, MySQL, PostgreSQL, NetCDF, V8 等） | sf, RMySQL, RPostgreSQL, RNetCDF, V8 |
+| libxml2 API 不兼容（`xmlAttr.val` 改为 `children`） | XML |
+| 缺少系统调用（`getpass`, `_res` 等 musl 不支持的 API） | askpass, pingr |
+| 需要 fontconfig 完整实现（仅有存根） | Cairo |
+| 缺少 R 依赖包（zigg, bigmemory 等未安装） | Rfast, fastglm |
+| C++ 标准库兼容性（OHOS SDK libc++ 限制） | geosphere |
+| JSON 库 API 不匹配（bundled libjson 版本问题） | RJSONIO |

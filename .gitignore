@@ -30,6 +30,20 @@ tmp/
 *.lo
 *.la
 
+# Fortran module files (generated during compilation)
+*.mod
+
+# Compile logs
+compile-logs/
+
+# Downloaded source tarball directories
+cairo-*/
+fftw-*/
+geos-*/
+gmp-*/
+pixman-*/
+libpcap-*/
+
 # OS
 .DS_Store
 Thumbs.db
