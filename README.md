@@ -162,6 +162,10 @@ HarmonyOS 使用 seccomp 安全策略，`R CMD INSTALL` 和 `install.packages()`
 | frailtypack | 2.7M | 共享脆弱模型和联合模型（大量 Fortran 代码） |
 | ggforce | 631K | ggplot2 扩展（预编译） |
 | fs | 219K | 文件系统操作（预编译） |
+| Rmpfr | 674K | 多精度浮点数运算（需 GMP + MPFR） |
+| jpeg | 530K | JPEG 图像读取（需 libjpeg-turbo） |
+| Rglpk | 814K | 线性规划求解（需 GLPK） |
+| RODBC | 454K | ODBC 数据库连接（需 unixODBC） |
 
 ### 常见编译失败原因
 
@@ -174,3 +178,24 @@ HarmonyOS 使用 seccomp 安全策略，`R CMD INSTALL` 和 `install.packages()`
 | 缺少 R 依赖包（zigg, bigmemory 等未安装） | Rfast, fastglm |
 | C++ 标准库兼容性（OHOS SDK libc++ 限制） | geosphere |
 | JSON 库 API 不匹配（bundled libjson 版本问题） | RJSONIO |
+
+## 外部系统库
+
+以下系统库已为 HarmonyOS aarch64 交叉编译并安装到 `~/.local/R-deps`：
+
+| 库 | 版本 | 大小 | 说明 |
+|---|---|---|---|
+| GMP | 6.3.0 | 1.0M | 多精度算术库（预装） |
+| MPFR | 4.2.1 | 1.0M | 多精度浮点运算 |
+| libjpeg-turbo | 3.0.4 | 665K | JPEG 图像库 |
+| GLPK | 5.0 | 1.8M | 线性规划求解器 |
+| unixODBC | 2.3.12 | 1.0M | ODBC 驱动管理器 |
+| expat | 2.6.2 | 206K | XML 解析器 |
+| fontconfig | 2.15.0 | 473K | 字体配置库（仅静态库，工具链因缺少 zlib/libpng 而未完全编译） |
+| freetype | 2.13.2 | 1.2M | 字体渲染引擎（预装） |
+
+构建脚本位于 `ohos-libs/scripts/build-all-simple.sh`，该脚本自动处理 HarmonyOS 特有的问题：
+- `/tmp` 只读 → 设置 `WORK` 到用户目录
+- `config.status` 中 `mktemp` 不可用 → 通过 `--no-create` + 手动修补或 `mktemp` 包装器解决
+- `print -r --` 在 POSIX shell 中不可用 → sed 替换为 `echo`
+- `rm` 命令不可用 → 忽略 `rm` 错误

@@ -36,12 +36,16 @@ tmp/
 # Compile logs
 compile-logs/
 
-# Downloaded source tarball directories
+# Downloaded source tarball directories and archives
 cairo-*/
+cairo-*.tar.*
 fftw-*/
 geos-*/
+geos-*.tar.*
 gmp-*/
+gmp-*.tar.*
 pixman-*/
+pixman-*.tar.*
 libpcap-*/
 
 # OS
