@@ -2,6 +2,63 @@
 # Configure R 4.4.3 for HarmonyOS (OpenHarmony) with OHOS Clang + gfortran
 # Run this from the project root to (re)configure the build.
 # After configuring, run: cd build && make
+#
+# ================================================================
+# R System Library Dependencies for HarmonyOS aarch64
+# ================================================================
+#
+# R CORE (statically linked into libR.so or linked at build time):
+#   Library       | Status          | Source
+#   --------------|-----------------|------------------------------------------
+#   zlib 1.x      | ✅ sysroot      | OHOS SDK sysroot (libz.so, shared)
+#   bzip2 1.0.x   | ✅ R-deps       | ~/.local/R-deps/lib/libbz2.a (static)
+#   liblzma (xz)  | ✅ R-deps       | ~/.local/R-deps/lib/liblzma.a (static)
+#   PCRE2 10.x    | ✅ R-deps       | ~/.local/R-deps/lib/libpcre2-8.a (static)
+#   libcurl 7.28+ | ✅ R-deps       | ~/.local/R-deps/lib/libcurl.a (static)
+#   OpenSSL 3.x   | ✅ R-deps       | ~/.local/R-deps/lib/libssl.a + libcrypto.a
+#   iconv         | ✅ musl builtin | musl libc provides iconv
+#   gfortran      | ✅ installed    | ~/.local/gfortran (libgfortran.a static)
+#   libgcc        | ✅ installed    | ~/.local/gfortran (libgcc.a + libgcc_eh.a)
+#
+# R RUNTIME (dynamic deps of libR.so):
+#   Library       | Status          | Source
+#   --------------|-----------------|------------------------------------------
+#   libRblas.so   | ✅ R built      | build/lib/libRblas.so
+#   libz.so       | ✅ sysroot      | OHOS SDK sysroot
+#   libomp.so     | ✅ OHOS SDK     | OHOS llvm/lib/aarch64-linux-ohos/
+#   libc.so       | ✅ sysroot      | OHOS SDK sysroot (musl)
+#
+# R PACKAGE SUPPORT (optional, in ~/.local/R-deps for package compilation):
+#   Library       | Version | Built | For R package
+#   --------------|---------|-------|------------------------------
+#   GMP           | 6.3.0   | ✅    | Rmpfr (multi-precision)
+#   MPFR          | 4.2.1   | ✅    | Rmpfr (floating-point)
+#   libjpeg-turbo | 3.0.4   | ✅    | jpeg (image I/O)
+#   GLPK          | 5.0     | ✅    | Rglpk (linear programming)
+#   unixODBC      | 2.3.12  | ✅    | RODBC (database connectivity)
+#   expat         | 2.6.2   | ✅    | XML parsing
+#   fontconfig    | 2.15.0  | ✅    | font matching (static, no tools)
+#   freetype      | 2.13.2  | ✅    | font rasterization
+#   libpng16      | 1.6.x   | ✅    | PNG image I/O
+#   libxml2       | 2.x     | ✅    | XML processing
+#   cairo         | 1.16.0  | ✅    | 2D graphics (X11-only, limited use)
+#   pixman        | 0.42.2  | ✅    | pixel manipulation
+#   fftw3         | 3.x     | ✅    | FFT (fftw3f + fftw3)
+#   GEOS          | 3.12.0  | ✅    | geometry engine (sf package)
+#   ANN           | ?       | ✅    | approximate nearest neighbor
+#
+# EXPLICITLY DISABLED (unavailable on HarmonyOS):
+#   readline  -- no termcap/ncurses
+#   X11       -- no X server
+#   Tcl/Tk    -- no Tcl/Tk for HarmonyOS
+#   Java      -- no JVM for aarch64 OHOS
+#   Aqua      -- macOS only
+#   libtiff   -- not built
+#   Cairo     -- needs X11 for display; libcairo.a static lib available
+#                but R's cairo device requires X11 at runtime
+#   BLAS/LAPACK -- R uses internal BLAS/LAPACK (no external dependency)
+#
+# ================================================================
 set -e
 
 export TMPDIR=/storage/Users/currentUser/R-harmonyos/tmp
@@ -35,7 +92,7 @@ rm -f config.cache config.status
 
 export PKG_CONFIG_PATH="${RDEPS}/lib/pkgconfig"
 
-# Pre-seed configure cache variables to skip runtime tests (blocked by hmmac)
+# Pre-seed configure cache variables to skip runtime tests (blocked by seccomp)
 # and link tests that fail due to missing libraries (BLAS/LAPACK/iconv on OHOS)
 for cv in \
     r_cv_mixed_c_fortran=yes \
@@ -76,7 +133,11 @@ for cv in \
     export "$cv"
 done
 
-# Run configure (may fail at config.status due to umask issue on OHOS)
+# Run configure
+# Note: --without-libpng and --without-jpeglib are intentionally NOT set
+# because libpng16.a and libjpeg.a are now available in R-deps.
+# R will auto-detect them via pkg-config. Remove these cached vars
+# if re-enabling: r_cv_have_libpng, r_cv_have_jpeg
 "$R_SRC/configure" \
     --build=x86_64-pc-linux-gnu \
     --host=aarch64-pc-linux-musl \
@@ -86,8 +147,6 @@ done
     --without-x \
     --without-tcltk \
     --without-cairo \
-    --without-libpng \
-    --without-jpeglib \
     --without-libtiff \
     --without-aqua \
     --disable-java \
