@@ -83,6 +83,30 @@ export LD_LIBRARY_PATH=/path/to/build/lib
 ./install-package /path/to/package_source
 ```
 
+### Jupyter R 内核
+
+R 内核 (IRkernel) 已配置为 Jupyter 内核，可通过 Jupyter Notebook/Lab/Console 使用：
+
+```bash
+# 查看已注册的内核
+jupyter kernelspec list
+# 输出应包含: ir /path/to/jupyter/kernels/ir
+
+# 启动 Jupyter console 使用 R 内核
+jupyter console --kernel ir
+
+# 执行 R 笔记本
+jupyter execute notebook.ipynb
+```
+
+**内核配置文件**: `~/.local/share/jupyter/kernels/ir/kernel.json`
+
+**环境要求**（由启动脚本自动设置）：
+- `R_HOME` = `/path/to/build`
+- `LD_LIBRARY_PATH` = `/path/to/build/lib`
+- `LD_PRELOAD` = `/path/to/build/lib/libc++_shared.so`
+- `TMPDIR` = 可写目录（需绕过 HarmonyOS seccomp 的 `/tmp` 限制）
+
 ### 安装包
 
 HarmonyOS 的 seccomp 安全策略阻止 R 创建子进程，因此 `R CMD INSTALL` 和 `install.packages()` 不可用。使用以下脚本安装源码包：
