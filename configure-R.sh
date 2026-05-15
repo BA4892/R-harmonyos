@@ -47,11 +47,16 @@
 #   GEOS          | 3.12.0  | ✅    | geometry engine (sf package)
 #   ANN           | ?       | ✅    | approximate nearest neighbor
 #
+# JAVA SUPPORT:
+#   Java      -- BiSheng JDK 17.0.13 (host JVM for JNI headers/tools at configure time)
+#                libjvm is linked at build time for JNI packages (rJava etc.)
+#                NOTE: Cross-compiled, so javareconf won't run; config values
+#                are pre-set via JAVA_HOME/JAVA_CPPFLAGS/JAVA_LIBS env vars.
+#
 # EXPLICITLY DISABLED (unavailable on HarmonyOS):
 #   readline  -- no termcap/ncurses
 #   X11       -- no X server
 #   Tcl/Tk    -- no Tcl/Tk for HarmonyOS
-#   Java      -- no JVM for aarch64 OHOS
 #   Aqua      -- macOS only
 #   libtiff   -- not built
 #   Cairo     -- needs X11 for display; libcairo.a static lib available
@@ -79,6 +84,15 @@ SYSROOT=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot
 GFORTRAN_LIB=/storage/Users/currentUser/.local/gfortran/lib64
 GCC_LIB=/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0
 RDEPS=/storage/Users/currentUser/.local/R-deps
+
+# Java (BiSheng JDK 17) - for JNI header detection and Java class compilation
+JAVA_HOME=/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06
+JAVA=/data/service/hnp/bin/java
+JAVAC=/data/service/hnp/bin/javac
+JAR=/data/service/hnp/bin/jar
+JAVA_CPPFLAGS="-I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux"
+JAVA_LIBS="-L${JAVA_HOME}/lib/server -ljvm"
+export JAVA_HOME JAVA JAVAC JAR JAVA_CPPFLAGS JAVA_LIBS
 
 # Library path for running test binaries
 export LD_LIBRARY_PATH="${GFORTRAN_LIB}:${GCC_LIB}:$LD_LIBRARY_PATH"
@@ -149,7 +163,7 @@ done
     --without-cairo \
     --without-libtiff \
     --without-aqua \
-    --disable-java \
+    --enable-java \
     --without-blas \
     --without-lapack \
     --with-pcre2 \
@@ -161,19 +175,41 @@ done
     CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${RDEPS}/include" \
     FCFLAGS="-O2 -g0" \
     FFLAGS="-O2 -g0" \
-    LDFLAGS="--sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib" \
+    LDFLAGS="--sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
-    CPPFLAGS="-I${RDEPS}/include" \
+    CPPFLAGS="-I${RDEPS}/include ${JAVA_CPPFLAGS}" \
     CURL_LIBS="-lcurl -lssl -lcrypto -lz -lpthread -ldl" \
     CURL_CPPFLAGS="" \
     CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${RDEPS}/include" \
     CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
 
-# Patch config.status to fix umask 077 issue (OHOS filesystem incompatibility)
+# Patch config.status to fix HarmonyOS filesystem incompatibilities:
+#   1. umask 077 + mktemp -d creates unwritable dirs ("Permission denied" on subs1.awk)
+#   2. print -r -- is a ksh-ism that bash doesn't support
+#   3. mktemp with ./confXXXXXX template issues
 if [ -f config.status ]; then
-    echo "Patching config.status to fix umask 077 -> 022 ..."
-    sed -i 's/umask 077 \&\& mktemp -d/umask 022 \&\& mktemp -d/g' config.status
-    sed -i 's/umask 077 \&\& mkdir/umask 022 \&\& mkdir/g' config.status
+    echo "Patching config.status for HarmonyOS compatibility ..."
+    python3 -c "
+import re
+with open('config.status', 'r') as f:
+    c = f.read()
+# Fix 1: Replace umask 077 + mktemp/mkdir temp dir creation with simple fallback
+c = re.sub(
+    r'tmp=\`\(\s*umask\s+077\s*&&\s*(mktemp\s+-d\s+\S*|mkdir\s+-p\s+\S*)\)\s*2>/dev/null\`\s*&&\s*test\s+-d\s+\"\\\$\"\s*\}\s*\|\|\s*\{[^}]*\}',
+    '{ tmp=./conftmp\n  mkdir -p \"./conftmp\"\n}',
+    c, flags=re.DOTALL
+)
+# Fix 2: standalone umask 077 + mkdir patterns
+c = re.sub(r'\(umask\s+077\s*&&\s*mkdir\s+\"\\\$tmp\"\)', 'mkdir -p \"\$tmp\" 2>/dev/null', c)
+# Fix 3: umask 077 && mktemp (no subshell wrapper)
+c = re.sub(r'umask\s+077\s*&&\s*mktemp\s+-d\s+', 'mkdir -p ', c)
+# Fix 4: bare mktemp -d with confXXXXXX template
+c = c.replace('mktemp -d \"./confXXXXXX\"', 'mkdir -p ./conftmp')
+# Fix 5: ksh-ism 'print -r --' -> 'echo' (bash doesn't support it)
+c = c.replace(\"ECHO='print -r --'\", \"ECHO='echo'\")
+with open('config.status', 'w') as f:
+    f.write(c)
+" 2>/dev/null || true
     echo "Re-running config.status ..."
     /bin/sh config.status 2>&1 | tee -a /storage/Users/currentUser/R-harmonyos/build/configure.log
 fi

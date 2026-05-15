@@ -18,6 +18,11 @@ R_INC="$DIR/include"
 R_LIB="$DIR/lib"
 FC="/storage/Users/currentUser/gfortran-harmonyos/build/gcc/gfortran"
 FC_DIR="/storage/Users/currentUser/gfortran-harmonyos/build/gcc"
+JAVA_HOME="/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06"
+JAVA="/data/service/hnp/bin/java"
+JAVAC="/data/service/hnp/bin/javac"
+JAR="/data/service/hnp/bin/jar"
+JAVA_CPPFLAGS="-I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux"
 
 # R Makeconf-style variable definitions for substitution
 BLAS_LIBS="-L$R_LIB -lRblas"
@@ -343,11 +348,17 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
   # Generate missing config.h
   generate_config_h "$pkgname" "$src_dir" "$pkg_path"
 
-  # Determine C++ standard
+  # Determine C++ standard (C++11/14/17 auto-detection)
   CXX_STD="-std=c++11"
   if needs_cxx14 "$pkg_path"; then
-    CXX_STD="-std=c++14"
-    echo "    (C++14 detected)"
+    # Check if package needs C++17 (std::filesystem, inline static constexpr if)
+    if grep -q "C++17\|c++17\|CXX17\|cxx17\|filesystem" "$pkg_path/src/"*.cpp "$pkg_path/src/"*.hpp 2>/dev/null; then
+      CXX_STD="-std=c++17"
+      echo "    (C++17 detected)"
+    else
+      CXX_STD="-std=c++14"
+      echo "    (C++14 detected)"
+    fi
   fi
 
   # R_NO_REMAP to avoid Rmath.h log1p macro conflict with std::log1p in C++11/14
@@ -428,7 +439,7 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
     base=$(basename "$src")
     base_noext="${base%.*}"
     echo "  CC $base"
-    if ! $CC -I"$R_INC" -I"$src_dir" $LINKING_INCLUDES --sysroot="$SYSROOT" -fPIC -O2 -g0 $PKG_CPPFLAGS $PKG_CFLAGS -c "$src" -o "$BUILD_TMP/$base_noext.o" >> "$compile_log" 2>&1; then
+    if ! $CC -I"$R_INC" -I"$src_dir" $LINKING_INCLUDES $JAVA_CPPFLAGS --sysroot="$SYSROOT" -fPIC -O2 -g0 $PKG_CPPFLAGS $PKG_CFLAGS -c "$src" -o "$BUILD_TMP/$base_noext.o" >> "$compile_log" 2>&1; then
       err=$(grep "fatal error" "$compile_log" | head -1)
       echo "  FAILED: $base -> $err"
       compile_ok=false; break
@@ -443,7 +454,7 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
       base=$(basename "$src")
       base_noext="${base%.*}"
       echo "  CXX $base"
-      if ! $CXX -I"$R_INC" -I"$src_dir" $LINKING_INCLUDES --sysroot="$SYSROOT" -fPIC -O2 -g0 $CXX_STD $PKG_CPPFLAGS $PKG_CXXFLAGS -c "$src" -o "$BUILD_TMP/$base_noext.o" >> "$compile_log" 2>&1; then
+      if ! $CXX -I"$R_INC" -I"$src_dir" $LINKING_INCLUDES $JAVA_CPPFLAGS --sysroot="$SYSROOT" -fPIC -O2 -g0 $CXX_STD $PKG_CPPFLAGS $PKG_CXXFLAGS -c "$src" -o "$BUILD_TMP/$base_noext.o" >> "$compile_log" 2>&1; then
         err=$(grep "fatal error" "$compile_log" | head -1)
         echo "  FAILED: $base -> $err"
         compile_ok=false; break
@@ -467,6 +478,23 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
     done
   fi
 
+  # Compile Java sources (for JNI packages like rJava)
+  java_src_dir="$src_dir/../java"
+  java_inst_dir="$pkg_path/inst/java"
+  if $compile_ok && [ -d "$java_src_dir" ]; then
+    java_files=$(find "$java_src_dir" -name "*.java" 2>/dev/null)
+    if [ -n "$java_files" ]; then
+      echo "  JAVAC ($(echo "$java_files" | wc -l) source files)"
+      mkdir -p "$java_inst_dir"
+      if ! $JAVAC -d "$java_inst_dir" $java_files >> "$compile_log" 2>&1; then
+        echo "  Java compilation FAILED"
+      else
+        (cd "$java_inst_dir" && $JAR cf "${pkgname}.jar" *.class */*.class 2>/dev/null) || true
+        echo "  Java compilation OK"
+      fi
+    fi
+  fi
+
   # Link
   if $compile_ok; then
     if [ -n "$OBJECTS" ]; then
@@ -485,7 +513,7 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
     mkdir -p "$libs_dir"
     if ! $CC -shared -fPIC -o "$libs_dir/$pkgname.so" $all_objs \
         -L"$R_LIB" -lR $PKG_LIBS --sysroot="$SYSROOT" -Wl,--allow-multiple-definition \
-        -L"$R_LIB" -lmuslstubs >> "$compile_log" 2>&1; then
+        -L"$R_LIB" -lmuslstubs -L"${JAVA_HOME}/lib/server" -ljvm >> "$compile_log" 2>&1; then
       echo "  LINK FAILED"
       err=$(grep -E "error:|undefined reference" "$compile_log" | head -3)
       echo "  $err"
@@ -516,6 +544,7 @@ for pkg_path in /storage/Users/currentUser/R-harmonyos/build/library/*/; do
         export R_HOME_DIR="$DIR"
         export R_HOME="$DIR"
         export LD_LIBRARY_PATH="$DIR/lib"
+        export LD_PRELOAD="$DIR/lib/libc++_shared.so"
         "$DIR/bin/exec/R" --vanilla --no-save --no-restore -e \
           "library(tools); tools:::makeLazyLoading(\"$pkgname\", lib.loc = \"/storage/Users/currentUser/R-harmonyos/build/library\", compress = FALSE)" \
           >> "$compile_log" 2>&1 || true

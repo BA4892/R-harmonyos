@@ -103,9 +103,14 @@ jupyter execute notebook.ipynb
 
 **环境要求**（由启动脚本自动设置）：
 - `R_HOME` = `/path/to/build`
-- `LD_LIBRARY_PATH` = `/path/to/build/lib`
+- `LD_LIBRARY_PATH` = `/path/to/build/lib`（也需包含 OHOS SDK 的 `libc++_shared.so` 路径供 node 使用）
 - `LD_PRELOAD` = `/path/to/build/lib/libc++_shared.so`
 - `TMPDIR` = 可写目录（需绕过 HarmonyOS seccomp 的 `/tmp` 限制）
+
+**已知的 Jupyter 警告及修复**：
+
+- **`Rscript execution error: Permission denied`**：jupyter_lsp 尝试运行 `Rscript -e "cat(system.file(package='languageserver'))"` 以检测 R 语言服务器。由于 HarmonyOS seccomp 阻止 `execv()` 系统调用，Rscript 无法启动 R 进程，返回"Permission denied"。解决方案：在 `~/.jupyter/jupyter_server_config.py` 中设置 `c.LanguageServerManager.autodetect = False`，禁用语言服务器自动检测。
+- **Node.js `libc++_shared.so` 符号错误**：Jupyter Lab 启动的 node 进程需要 OHOS SDK 的 `libc++_shared.so`。确保 `LD_LIBRARY_PATH` 包含 OHOS SDK 的 C++ 库路径，且位于 R 的库路径之前（R 的 libc++ 与 node 不兼容）。
 
 ### 安装包
 
@@ -141,17 +146,20 @@ HarmonyOS 的 seccomp 安全策略阻止 R 创建子进程，因此 `R CMD INSTA
 | `methods` 包启动             | ✓ 通过（partial=TRUE 引导修复） |
 | `install-package` 脚本安装包 | ✓ 通过                          |
 | `rharmonyos` 包装器          | ✓ 通过                          |
+| Cairo R 包加载和基本设备操作 | ✓ 通过（PNG/PDF/SVG）          |
+| ggplot2 + CairoPNG 渲染      | ✓ 通过                          |
 
 ## 已知限制
 
 - **gzfile() 不可用**：Seccomp 过滤了 zlib 压缩操作。包安装需要设置 `compress=FALSE`
+- **`Rscript` 内部使用 `execv()`**：Rscript 通过 `execv()` 启动 R 进程，但 HarmonyOS seccomp 阻止 `execv()` 系统调用。`Rscript --version` 可工作（纯内置信息），但 `Rscript -e` 会失败并返回 "Permission denied"。影响 jupyter_lsp 等工具的自动检测。
 - **`system()` 不可用**：R 无法通过 `system()` / `system2()` 创建子进程（seccomp 限制）
 - **`install.packages()` 不可用**：安装包需使用 `install-package` 脚本
 - **`R CMD INSTALL` 不可用**：原因同上，所有子进程创建均被拦截
 - **`library()` pager 报错**：`pager` 命令无法通过子进程执行（seccomp 限制），但不影响 R 的正常使用
 - **`Sys.which("uname")` 警告**：startup 时提示 `which` 未找到，不影响 R 运行
 - **无 Tcl/Tk**：配置时使用 `--without-tcltk`
-- **Cairo 不支持**：fontconfig 仅在受限的存根中可用，缺少完整的字体匹配功能
+- **Cairo 不支持**：fontconfig 仅在受限的存根中可用，缺少完整的字体匹配功能。Cairo R 包需特殊处理才能运行：（1）编译时需设置 `-DUSE_CAIRO_FT=0 -DCAIRO_HAS_FT_FONT=0` 以禁用 fontconfig 依赖的 FreeType 代码；（2）需要使用 nspackloader 格式的 `R/Cairo` 文件加载懒加载 DB，并在加载后修正函数环境（`environment()`）为命名空间（详见 `{build}/library/Cairo/R/Cairo`）；（3）需要静态链接 `libcairo.a` 及其依赖（freetype/png/pixman/zlib/bz2/expat）
 - **无 Java**：配置时使用 `--disable-java`
 - **无 readline**：配置时使用 `--without-readline`
 - **无 X11**：配置时使用 `--without-x`
