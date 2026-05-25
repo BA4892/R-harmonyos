@@ -11,11 +11,11 @@
 #   Library       | Status          | Source
 #   --------------|-----------------|------------------------------------------
 #   zlib 1.x      | ✅ sysroot      | OHOS SDK sysroot (libz.so, shared)
-#   bzip2 1.0.x   | ✅ R-deps       | ~/.local/R-deps/lib/libbz2.a (static)
-#   liblzma (xz)  | ✅ R-deps       | ~/.local/R-deps/lib/liblzma.a (static)
-#   PCRE2 10.x    | ✅ R-deps       | ~/.local/R-deps/lib/libpcre2-8.a (static)
-#   libcurl 7.28+ | ✅ R-deps       | ~/.local/R-deps/lib/libcurl.a (static)
-#   OpenSSL 3.x   | ✅ R-deps       | ~/.local/R-deps/lib/libssl.a + libcrypto.a
+#   bzip2 1.0.x   | ✅ brew/手动    | brew install bzip2 或 ~/.local/R-deps
+#   liblzma (xz)  | ✅ brew/手动    | brew install xz 或 ~/.local/R-deps
+#   PCRE2 10.x    | ✅ brew/手动    | brew install pcre2 或 ~/.local/R-deps
+#   libcurl 7.28+ | ✅ brew/手动    | brew install curl 或 ~/.local/R-deps
+#   OpenSSL 3.x   | ✅ brew/手动    | brew install openssl 或 ~/.local/R-deps
 #   iconv         | ✅ musl builtin | musl libc provides iconv
 #   gfortran      | ✅ installed    | ~/.local/gfortran (libgfortran.a static)
 #   libgcc        | ✅ installed    | ~/.local/gfortran (libgcc.a + libgcc_eh.a)

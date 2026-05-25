@@ -26,9 +26,17 @@ R 4.4.3 移植到 HarmonyOS (OpenHarmony) 原生平台。
 
 ### 前置条件
 
-- OHOS SDK 26.0.0.18 (Clang 15.0.4)
-- HarmonyOS 原生 gfortran 交叉编译器
-- 必要的依赖库 (pcre2, lzma, bz2, zlib)
+- OHOS SDK 26.0.0.18 (Clang 15.0.4) — `brew install ohos-sdk`
+- HarmonyOS 原生 gfortran 交叉编译器（参见 [gfortran-harmonyos](https://github.com/sxgou/gfortran-harmonyos)）
+- 依赖库可直接通过 brew 安装：
+
+  ```bash
+  brew install bzip2 xz pcre2 openssl curl libpng freetype cairo geos gmp libxml2 pixman
+  ```
+
+> **2026-05 更新**: 此前这些依赖库需要手动交叉编译（参见 `build-deps.sh`），
+> [harmonybrew](https://github.com/Harmonybrew/homebrew-harmony) 现已提供预编译 bottle，
+> 不再需要从源码构建。`build-deps.sh` 保留供参考。
 
 ### 配置
 

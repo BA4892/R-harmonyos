@@ -1,6 +1,12 @@
 #!/bin/sh
 # Build R dependencies for HarmonyOS (bzip2, xz/liblzma, pcre2)
 # These are installed into $HOME/.local/R-deps/ for use by configure-R.sh
+#
+# 2026-05: harmonybrew 已提供这些依赖的预编译 bottle。
+# 推荐直接使用 brew 安装，不再需要本脚本：
+#   brew install bzip2 xz pcre2 openssl curl libpng freetype cairo \
+#              geos gmp libxml2 pixman
+# 本脚本保留供参考和离线环境使用。
 set -e
 
 export TMPDIR=/storage/Users/currentUser/R-harmonyos/tmp
