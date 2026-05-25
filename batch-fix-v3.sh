@@ -9,6 +9,10 @@ SYSROOT="/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot"
 R_INC="$DIR/include"
 R_LIB="$DIR/lib"
 EXT_LIB="/storage/Users/currentUser/.local/R-deps"
+BREW_PREFIX="/storage/Users/currentUser/.harmonybrew"
+BREW_INC="$BREW_PREFIX/include"
+BREW_LD="$BREW_PREFIX/lib"
+HOMEBREW_PREFIX="/storage/Users/currentUser/.harmonybrew"
 EXT_INC="$EXT_LIB/include"
 EXT_LD="$EXT_LIB/lib"
 
@@ -26,7 +30,7 @@ for d in "$EXT_INC"/freetype2; do
 done
 
 # Common compilation flags
-BASE_CFLAGS="-I$R_INC --sysroot=$SYSROOT -fPIC -O2 -g0 -L$R_LIB -L$EXT_LD"
+BASE_CFLAGS="-I$R_INC --sysroot=$SYSROOT -fPIC -O2 -g0 -L$R_LIB -L$EXT_LD -L$BREW_LD"
 BASE_CXXFLAGS="$BASE_CFLAGS"
 
 # Per-package compilation settings

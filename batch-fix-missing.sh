@@ -18,6 +18,10 @@ JAVA_CPPFLAGS="-I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux"
 
 # External libs
 EXT_LIB="/storage/Users/currentUser/.local/R-deps"
+BREW_PREFIX="/storage/Users/currentUser/.harmonybrew"
+BREW_INC="$BREW_PREFIX/include"
+BREW_LD="$BREW_PREFIX/lib"
+HOMEBREW_PREFIX="/storage/Users/currentUser/.harmonybrew"
 EXT_INC="$EXT_LIB/include"
 EXT_LD="$EXT_LIB/lib"
 
@@ -238,12 +242,12 @@ for pkg_path in "$LIBRARY"/*/; do
   for self_path in "$pkg_path/inst/include" "$pkg_path/include"; do
     [ -d "$self_path" ] && { LINKING_INCLUDES="$LINKING_INCLUDES -I$self_path"; break; }
   done
-  if [ -d "$EXT_INC" ]; then
-    LINKING_INCLUDES="$LINKING_INCLUDES -I$EXT_INC"
+  if [ -d "$EXT_INC" ] && [ -d "$BREW_INC" ]; then
+    LINKING_INCLUDES="$LINKING_INCLUDES -I$EXT_INC -I$BREW_INC"
     for d in "$EXT_INC"/*/; do [ -d "$d" ] && LINKING_INCLUDES="$LINKING_INCLUDES -I$d"; done
   fi
   if [ -d "$EXT_LD" ]; then
-    PKG_LIBS="$PKG_LIBS -L$EXT_LD"
+    PKG_LIBS="$PKG_LIBS -L$EXT_LD -L$BREW_LD"
   fi
 
   compile_log="$LOG_DIR/$pkgname.log"

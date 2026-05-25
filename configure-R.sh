@@ -84,6 +84,7 @@ SYSROOT=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot
 GFORTRAN_LIB=/storage/Users/currentUser/.local/gfortran/lib64
 GCC_LIB=/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0
 RDEPS=/storage/Users/currentUser/.local/R-deps
+HOMEBREW_PREFIX=/storage/Users/currentUser/.harmonybrew
 
 # Java (BiSheng JDK 17) - for JNI header detection and Java class compilation
 JAVA_HOME=/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06
@@ -104,7 +105,7 @@ export TZ=CST-8
 # Clean build directory to avoid stale cache
 rm -f config.cache config.status
 
-export PKG_CONFIG_PATH="${RDEPS}/lib/pkgconfig"
+export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig:${RDEPS}/lib/pkgconfig"
 
 # Pre-seed configure cache variables to skip runtime tests (blocked by seccomp)
 # and link tests that fail due to missing libraries (BLAS/LAPACK/iconv on OHOS)
@@ -171,17 +172,17 @@ done
     CXX="$OHOS_CLANGXX" \
     FC="$GFORTRAN" \
     F77="$GFORTRAN" \
-    CFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${RDEPS}/include" \
-    CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${RDEPS}/include" \
+    CFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
+    CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
     FCFLAGS="-O2 -g0" \
     FFLAGS="-O2 -g0" \
-    LDFLAGS="--sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
+    LDFLAGS="--sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${HOMEBREW_PREFIX}/lib -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
-    CPPFLAGS="-I${RDEPS}/include ${JAVA_CPPFLAGS}" \
+    CPPFLAGS="-I${HOMEBREW_PREFIX}/include -I${RDEPS}/include ${JAVA_CPPFLAGS}" \
     CURL_LIBS="-lcurl -lssl -lcrypto -lz -lpthread -ldl" \
     CURL_CPPFLAGS="" \
-    CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${RDEPS}/include" \
-    CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
+    CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
+    CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
 
 # Patch config.status to fix HarmonyOS filesystem incompatibilities:
 #   1. umask 077 + mktemp -d creates unwritable dirs ("Permission denied" on subs1.awk)

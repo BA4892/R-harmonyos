@@ -11,6 +11,9 @@ SYSROOT="/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot"
 R_INC="$DIR/include"
 R_LIB="$DIR/lib"
 EXT_INC="/storage/Users/currentUser/.local/R-deps/include"
+BREW_PREFIX="/storage/Users/currentUser/.harmonybrew"
+BREW_INC="$BREW_PREFIX/include"
+BREW_LD="$BREW_PREFIX/lib"
 EXT_LD="/storage/Users/currentUser/.local/R-deps/lib"
 LOG_DIR="$DIR/../compile-logs"
 mkdir -p "$LOG_DIR"
@@ -24,13 +27,13 @@ SHLIB_OPENMP_CFLAGS="-fopenmp"
 SHLIB_OPENMP_CXXFLAGS="-fopenmp"
 SHLIB_OPENMP_FFLAGS="-fopenmp"
 
-EXT_INC_DIRS=(-I"$EXT_INC")
+EXT_INC_DIRS=(-I"$EXT_INC" -I"$BREW_INC")
 for d in "$EXT_INC"/*/; do
   [ -d "$d" ] && EXT_INC_DIRS+=(-I"$d")
 done
 
 BASE_CFLAGS=(-I"$R_INC" --sysroot="$SYSROOT" -fPIC -O2 -g0)
-BASE_LINK=(-shared -fPIC -L"$R_LIB" -lR -L"$EXT_LD" --sysroot="$SYSROOT" -Wl,--allow-multiple-definition -lmuslstubs)
+BASE_LINK=(-shared -fPIC -L"$R_LIB" -lR -L"$EXT_LD" -L"$BREW_LD" --sysroot="$SYSROOT" -Wl,--allow-multiple-definition -lmuslstubs)
 
 expand_vars() {
   local s="$1"
