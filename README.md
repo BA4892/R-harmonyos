@@ -13,7 +13,7 @@ R 4.4.3 移植到 HarmonyOS (OpenHarmony) 原生平台。
 │   ├── lib/              # 共享库 (libR.so, libRblas.so, libRlapack.so)
 │   └── library/          # 已安装的 R 包（15 个基础包）
 ├── src/R-4.4.3/          # R 4.4.3 原始源代码（已打补丁）
-├── build-deps.sh         # 构建依赖脚本
+├── build-deps.sh         # 安装依赖（brew install，部分手动）
 ├── configure-R.sh        # R 配置脚本
 ├── install-package       # 包安装脚本（便捷包装器）
 ├── rharmonyos            # R 启动包装器（便捷包装器）
@@ -34,9 +34,9 @@ R 4.4.3 移植到 HarmonyOS (OpenHarmony) 原生平台。
   brew install bzip2 xz pcre2 openssl curl libpng freetype cairo geos gmp libxml2 pixman
   ```
 
-> **2026-05 更新**: 此前这些依赖库需要手动交叉编译（参见 `build-deps.sh`），
-> [harmonybrew](https://github.com/Harmonybrew/homebrew-harmony) 现已提供预编译 bottle，
-> 不再需要从源码构建。`build-deps.sh` 保留供参考。
+> **2026-05 更新**: 这些依赖库现通过 `build-deps.sh` 自动使用
+> [harmonybrew](https://github.com/Harmonybrew/homebrew-harmony) 安装预编译 bottle，
+> 不再需要从源码构建。个别未进入 brew 的库（GLPK、FFTW、ANN、zeromq）仍需手动编译，参见 `ohos-libs`。
 
 ### 配置
 
@@ -226,37 +226,39 @@ R 核心编译和运行时所需的系统库（非 R 包依赖）：
 | 类别 | 库 | 链接方式 | 来源 |
 |------|-----|---------|------|
 | 压缩 | zlib | 动态 (libz.so) | OHOS SDK sysroot |
-| 压缩 | bzip2 | 静态 (libbz2.a) | ~/.local/R-deps |
-| 压缩 | liblzma (XZ) | 静态 (liblzma.a) | ~/.local/R-deps |
-| 正则 | PCRE2 | 静态 (libpcre2-8.a) | ~/.local/R-deps |
-| 网络 | libcurl + OpenSSL | 静态 (libcurl.a+libssl.a) | ~/.local/R-deps |
+| 压缩 | bzip2 | 静态 (libbz2.a) | harmonybrew |
+| 压缩 | liblzma (XZ) | 静态 (liblzma.a) | harmonybrew |
+| 正则 | PCRE2 | 静态 (libpcre2-8.a) | harmonybrew |
+| 网络 | libcurl + OpenSSL | 静态 (libcurl.a+libssl.a) | harmonybrew |
 | 编码 | iconv | musl libc 内置 | OHOS SDK sysroot |
 | 并行 | libomp (OpenMP) | 动态 (libomp.so) | OHOS SDK llvm |
 | Fortran | libgfortran+libgcc | 静态 (libgfortran.a等) | gfortran 安装目录 |
 
 ## 外部系统库（R 包支持）
 
-以下系统库已为 HarmonyOS aarch64 交叉编译并安装到 `~/.local/R-deps`，供 R 包编译时链接：
+以下系统库用于 R 包编译时链接。标注"brew"的可通过 harmonybrew 安装，
+标注"手动"的仍在 `~/.local/R-deps`：
 
-| 库 | 版本 | 大小 | 用途 |
-|---|---|---|---|
-| GMP | 6.3.0 | 1.0M | 多精度算术库 |
-| MPFR | 4.2.1 | 1.0M | 多精度浮点运算 |
-| libjpeg-turbo | 3.0.4 | 665K | JPEG 图像编解码 |
-| GLPK | 5.0 | 1.8M | 线性规划求解器 |
-| unixODBC | 2.3.12 | 1.0M | ODBC 数据库连接 |
-| expat | 2.6.2 | 206K | XML 解析器 |
-| fontconfig | 2.15.0 | 473K | 字体配置（仅静态库，工具未编译） |
-| freetype | 2.13.2 | 1.2M | 字体渲染引擎 |
-| libpng16 | 1.6.x | 424K | PNG 图像编解码 |
-| libxml2 | 2.x | 2.9M | XML 处理库 |
-| cairo | 1.16.0 | 1.7M | 2D 图形库（无 X11 时功能受限） |
-| pixman | 0.42.2 | 553K | 像素操作库（cairo 依赖） |
-| fftw3 | 3.x | 1.6M | FFT 库（含单精度 fftw3f） |
-| GEOS | 3.12.0 | 10.6M | 几何引擎（sf 包依赖） |
-| ANN | - | 136K | 近似最近邻搜索 |
+| 库 | 版本 | 大小 | 来源 | 用途 |
+|---|---|---|---|---|
+| GMP | 6.3.0 | 1.0M | brew | 多精度算术库 |
+| MPFR | 4.2.1 | 1.0M | brew | 多精度浮点运算 |
+| libjpeg-turbo | 3.0.4 | 665K | brew | JPEG 图像编解码 |
+| GLPK | 5.0 | 1.8M | 手动 (~/.local/R-deps) | 线性规划求解器 |
+| unixODBC | 2.3.12 | 1.0M | brew | ODBC 数据库连接 |
+| expat | 2.6.2 | 206K | brew | XML 解析器 |
+| fontconfig | 2.15.0 | 473K | brew | 字体配置（仅静态库，工具未编译） |
+| freetype | 2.13.2 | 1.2M | brew | 字体渲染引擎 |
+| libpng16 | 1.6.x | 424K | brew | PNG 图像编解码 |
+| libxml2 | 2.x | 2.9M | brew | XML 处理库 |
+| cairo | 1.16.0 | 1.7M | brew | 2D 图形库（无 X11 时功能受限） |
+| pixman | 0.42.2 | 553K | brew | 像素操作库（cairo 依赖） |
+| fftw3 | 3.x | 1.6M | 手动 (~/.local/R-deps) | FFT 库（含单精度 fftw3f） |
+| GEOS | 3.12.0 | 10.6M | brew | 几何引擎（sf 包依赖） |
+| ANN | - | 136K | 手动 (~/.local/R-deps) | 近似最近邻搜索 |
 
-构建脚本位于 `ohos-libs/scripts/build-all-simple.sh`，该脚本自动处理 HarmonyOS 特有的问题：
+构建脚本位于 `ohos-libs/scripts/build-all-simple.sh`（仅用于非 brew 库），
+该脚本自动处理 HarmonyOS 特有的问题：
 - `/tmp` 只读 → 设置 `WORK` 到用户目录
 - `config.status` 中 `mktemp` 不可用 → 通过 `--no-create` + 手动修补或 `mktemp` 包装器解决
 - `print -r --` 在 POSIX shell 中不可用 → sed 替换为 `echo`
