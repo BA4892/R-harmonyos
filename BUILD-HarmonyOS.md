@@ -2,7 +2,7 @@
 
 ## 概述
 
-将 R 4.4.3 交叉编译到 HarmonyOS (aarch64-linux-ohos) 平台。使用 OHOS SDK Clang + gfortran 交叉编译器，依赖库由 harmonybrew 提供。
+将 R 4.4.3 交叉编译到 HarmonyOS (aarch64-linux-ohos) 平台。
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + gfortran 14.2.0
@@ -12,10 +12,22 @@
 - **readline**: 启用（brew libreadline + ncurses，Tab 补全和方向键可用）
 - **Java**: BiSheng JDK 17
 
+### 脚本总览
+
+| 脚本 | 位置 | 何时运行 | 作用 |
+|------|------|----------|------|
+| `build-deps.sh` | 项目根目录 | **第 2 步**（可选） | 自动安装 brew 依赖库 |
+| `apply-patches.sh` | 项目根目录 | **第 4 步**，或在第 6 步由 configure-R.sh 自动调用 | 对 R 源码打 HarmonyOS 补丁 |
+| `configure-R.sh` | 项目根目录 | **第 6 步** | 配置 R 构建（自动调 apply-patches.sh） |
+
+所有脚本必须**按顺序执行**，不可跳过或调换次序。
+
+---
+
 ## 构建环境
 
 | 组件 | 路径 |
-|---|---|
+|------|------|
 | OHOS SDK | `/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/` |
 | C/C++ 编译器 | `/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++` |
 | Fortran | `~/.local/gfortran/bin/gfortran` |
@@ -30,57 +42,251 @@
 
 手动编译（`~/.local/R-deps`）：fftw3, zeromq, ANN, mpfr
 
+---
+
 ## 构建步骤
 
+```
+Prerequisites (Step 1)          — 工具链准备
+       │
+  Step 2: build-deps.sh         — 安装依赖库（可选，也可手动 brew install）
+       │
+  Step 3: tar xzf R-4.4.3...   — 解压 R 源码
+       │
+  Step 4: apply-patches.sh     — 打补丁（可跳过，Step 6 自动执行）
+       │
+  Step 5: configure-R.sh       — 配置（自动调用 apply-patches.sh）
+       │
+  Step 6: cd build && make...  — 编译
+       │
+  Step 7: make install         — 安装
+       │
+  Step 8: Post-install         — 生成 methods 懒加载库 + NEWS.rds
+```
+
+---
+
+### 第 1 步：准备工具链
+
+确保以下工具链已就绪：
+
 ```bash
-# 1. 下载并解压 R 4.4.3 源码
+# OHOS SDK — 检查 clang 可用
+aarch64-unknown-linux-ohos-clang --version
+
+# gfortran 交叉编译器
+~/.local/gfortran/bin/gfortran --version
+
+# BiSheng JDK 17
+java -version
+
+# lld 包装器 — 见下方说明
+~/.local/bin/ohos-lld-wrapper --help
+```
+
+**lld 包装器**：必须安装 `~/.local/bin/ohos-lld-wrapper`，内容如下：
+
+```sh
+#!/bin/sh
+LLVM_LIB=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib
+export LD_LIBRARY_PATH="${LLVM_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec -a "ld.lld" "$LLVM_LIB/../bin/lld" --code-sign "$@"
+```
+
+此包装器解决两个关键问题：
+1. **musl 不支持 `$ORIGIN`** — lld 自身 RUNPATH 设为 `$ORIGIN/../lib` 指向 OHOS LLVM lib，但 musl ld.so 忽略此标记，导致 lld 运行时找不到自己的 libxml2.so.16。包装器通过 `LD_LIBRARY_PATH` 显式指定 LLVM lib 路径。
+2. **hmdfs 要求 `.codesign` 段** — 仅 lld 的 `--code-sign` 自动生成此段，bfd 链接器无法生成。
+
+---
+
+### 第 2 步：安装 R 依赖库
+
+**方式 A — 自动安装（推荐）**：
+
+```bash
+bash build-deps.sh
+```
+
+此脚本自动执行：
+- `brew install bzip2 xz pcre2 curl libpng freetype cairo ...`（所有 brew 可用依赖）
+- 创建 `~/.local/R-deps/` 目录（用于尚未进入 brew 的库）
+- 验证关键库文件是否存在
+
+**方式 B — 手动安装**：
+
+```bash
+brew install bzip2 xz pcre2 curl openssl libpng freetype cairo \
+  geos gmp libxml2 pixman libjpeg unixodbc expat fontconfig
+```
+
+非 brew 库（fftw3, zeromq, ANN, mpfr）需要手动交叉编译，安装到 `~/.local/R-deps/`。
+
+---
+
+### 第 3 步：下载并解压 R 4.4.3 源码
+
+```bash
 curl -L https://cran.r-project.org/src/base/R-4/R-4.4.3.tar.gz | tar xz -C src/
+```
 
-# 2. 自动打补丁（HMOS 适配、libc 补齐库等）
+解压后目录结构：
+
+```
+src/R-4.4.3/        ← R 原始源码（由 apply-patches.sh 修改）
+```
+
+---
+
+### 第 4 步：对 R 源码打 HarmonyOS 补丁
+
+```bash
 bash apply-patches.sh
+```
 
-# 3. 配置
-./configure-R.sh
+此脚本对 `src/R-4.4.3/` 中的原始源码执行以下操作：
 
-# 4. 编译 R 核心 + base 包
+- 应用 `patches/` 目录下的 **14 个补丁文件**（修改现有 R 源码）
+- 复制 `patches/new-files/` 中的 **2 个新增文件**（ohos_stubs.c + Makefile.in）到 `src/extra/ohos_stubs/`
+
+补丁覆盖范围：
+
+| 补丁文件 | 修改内容 |
+|----------|----------|
+| `src-library-base-baseloader.R.patch` | readRDS 参数名 `file` → `filepath`，避免遮蔽 base::file() |
+| `src-main-gzio.h.patch` | fopen → R_fopen，补上 Fileio.h |
+| `src-library-base-R-serialize.R.patch` | gzfile() → file()（绕过 seccomp zlib 过滤） |
+| `src-library-base-R-load.R.patch` | gzfile() → file() |
+| `src-library-base-R-dcf.R.patch` | gzfile() → file() |
+| `src-library-base-R-lazyload.R.patch` | 懒加载中 gzfile() → file() |
+| `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 限制为仅 `${R_HOME}/lib` |
+| `src-library-methods-R-zzz.R.patch` | nspackloader 懒加载支持 |
+| `src-library-tools-R-admin.R.patch` | vignette 安装时 memDecompress fallback |
+| `src-library-tools-R-Rd.R.patch` | partial.rdb 的 memDecompress fallback |
+| `src-main-Makefile.in.patch` | install-bin 清理非 R 文件（R.bfd, test-exec, test-sh） |
+| `src-extra-Makefile.in.patch` | ohos_stubs 构建集成 |
+| `share-make-lazycomp.mk.patch` | 懒加载数据库 compress=FALSE |
+| `share-make-basepkg.mk.patch` | base 包安装 compress=FALSE |
+
+**注意**：此步骤也可跳过——第 5 步的 `configure-R.sh` 会自动调用 `apply-patches.sh`。单独运行适用于提前查看补丁效果或在修改补丁后单独测试。
+
+---
+
+### 第 5 步：配置 R 构建
+
+```bash
+bash configure-R.sh
+```
+
+此脚本完成以下工作：
+
+1. **自动调用 `apply-patches.sh`**（如果尚未打补丁）
+2. **清理** `build/` 目录中的 `config.cache` 和 `config.status`
+3. **设置环境变量**（PKG_CONFIG_PATH 指向 brew 和 R-deps，LD_LIBRARY_PATH 指向 OHOS LLVM lib 和 gfortran）
+4. **预配置缓存变量**（约 35 个 `r_cv_*` / `ac_cv_*` 变量，跳过因 seccomp 限制无法运行的运行时测试）
+5. **运行 `src/R-4.4.3/configure`** 并传递所有 HarmonyOS 交叉编译参数
+6. **修补 `config.status`**（修复 HarmonyOS toybox 的兼容性问题：umask 077 + mktemp 失败，ksh `print -r --` bash 不支持）
+7. **重新运行 `config.status`** 生成最终的 Makefile
+
+关键配置选项：
+
+```
+--host=aarch64-pc-linux-musl      # 交叉编译目标（实际对应 aarch64-linux-ohos）
+--enable-R-shlib                   # 构建 libR.so（必需，hmdfs 不支持静态链接）
+--with-readline                    # readline 交互支持
+--with-blas=-lopenblas             # OpenBLAS（SIMD 优化）
+--with-lapack                      # OpenBLAS LAPACK
+--enable-java                      # BiSheng JDK 17
+--without-x                        # X11 不可用（brew 无 libXt）
+--without-tcltk                    # 无 Tcl/Tk
+```
+
+---
+
+### 第 6 步：编译
+
+```bash
 cd build && make && make R
+```
 
-# 5. 安装
-make install                          # 安装到 --prefix 指定目录
+各阶段说明：
+- `make`：编译 R 核心 C/Fortran 代码和 libR.so
+- `make R`：生成 R 主二进制（PIE）和 Rscript
 
-# 6. 手动生成 methods 包懒加载数据库（问题 2）
+编译时需注意：
+- **编译全部 15 个 base 包**：`make` 会自动编译
+- **Makeconf 一致性**：`build/Makeconf` 和 `build/etc/Makeconf` 必须同步（由 configure 生成）。如果修改了配置，需重新运行 `configure-R.sh`
+- **两个 Makeconf 文件**：如果手动修改其中一个，必须同步到另一个，否则 make 会使用过时的配置
+
+---
+
+### 第 7 步：安装
+
+```bash
+make install
+```
+
+安装到 `--prefix` 指定的目录（`~/.local/R/`），结果如下：
+
+| 组件 | 路径 |
+|------|------|
+| R Home | `~/.local/R/lib/R/` |
+| R 二进制 | `~/.local/R/lib/R/bin/exec/R` |
+| libR.so | `~/.local/R/lib/R/lib/libR.so` |
+| Base 包 | `~/.local/R/lib/R/library/*/` |
+| 包装脚本 | `~/.local/R/lib/R/bin/R` |
+
+**注意**：hmdfs 不允许覆盖已存在的 `.so` 文件。如需重新安装，先删除旧文件：
+
+```bash
+rm -rf ~/.local/R/lib/R/lib/*.so ~/.local/R/lib/R/bin/exec/R
+make install
+```
+
+---
+
+### 第 8 步：安装后处理
+
+#### 8a. 生成 methods 包懒加载数据库
+
+stats4 包依赖 methods，methods 的懒加载数据库在标准 R 构建流程中自动生成，但 HarmonyOS 补丁移除了自动生成调用，需手动执行：
+
+```bash
 echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
   R_DEFAULT_PACKAGES=NULL LC_ALL=C ./bin/R --vanilla --no-echo
-
-# 7. 生成 NEWS.rds（问题 4）
-# 见下方问题 4
 ```
 
-### 关键配置选项
+生成文件：`library/methods/R/methods` (nspackloader), `methods.rdb` (963 KB), `methods.rdx` (23 KB)
 
-```
---host=aarch64-linux-ohos            # 交叉编译目标
---enable-R-shlib                     # 构建 libR.so（必需，hmdfs 不支持静态链接）
---with-readline                      # readline 交互支持
---with-blas=-lopenblas               # OpenBLAS（SIMD 优化）
---with-lapack                        # OpenBLAS LAPACK（与 BLAS 同库）
---enable-java                        # BiSheng JDK 17
---without-x --without-tcltk          # X11 不可用（brew 无 libXt），无 Tcl/Tk
---disable-nls                        # 可选，减少依赖
+#### 8b. 生成 NEWS.rds
+
+`make install` 会在安装时自动生成 `NEWS.rds`，但如果交叉编译环境下此步骤失败，需手动生成：
+
+```bash
+cd build/doc
+echo 'options(warn=1);saveRDS(tools:::prepare_Rd(tools::parse_Rd(
+  "../../src/R-4.4.3/doc/NEWS.Rd",
+  macros = "../share/Rd/macros/system.Rd"), stages = "install",
+  warningCalls = FALSE), "NEWS.rds")' | ../bin/R --vanilla --no-echo
 ```
 
-### RPATH 策略
+对 `NEWS.2.Rd` 和 `NEWS.3.Rd` 重复上述命令（改文件名即可）。
 
-HarmonyOS 通常禁用 `LD_LIBRARY_PATH`，所有库路径直接编码在 DT_RPATH 中：
+---
 
+## 使用
+
+R 安装后通过包装脚本启动：
+
+```bash
+~/.local/R/lib/R/bin/R                          # R REPL
+~/.local/R/lib/R/bin/R -e 'print(1+1)'          # 运行表达式
+~/.local/R/lib/R/bin/R --vanilla -e \
+  'install.packages("jsonlite", repos="https://cloud.r-project.org")'
 ```
-RPATH: /build/lib
-       :/ohos-sdk/.../sysroot/usr/lib/aarch64-linux-ohos
-       :~/.harmonybrew/lib
-       :~/.local/gfortran/lib64
-       :~/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0
-       :/ohos-sdk/.../llvm/lib
-```
+
+**注意**：`Rscript` 不可用——seccomp 阻止 `execv()`。改用 `R --vanilla -e` 执行脚本。
+
+---
 
 ## 已知问题与修复
 
@@ -92,34 +298,11 @@ RPATH: /build/lib
 
 **根因**: `readRDS` 的参数名为 `file`，函数体内又调用 `file(file, "rb")`。参数 `file` 遮蔽了 base 包中的 `file()` 函数。更关键的是，在 base 包懒加载阶段，`file()` 这个非原语函数尚未定义——base 包自己还没加载完成。
 
-**修复**: 参数重命名为 `filepath`，并将 `file(filepath, "rb")` 替换为 `.Internal(file(filepath, "rb", TRUE, "", "default", FALSE))`，直接调用 C 层实现，不依赖 R 包装函数：
-
-```r
-readRDS <- function (filepath) {
-    halt <- function (message) .Internal(stop(TRUE, message))
-    close <- function (con) .Internal(close(con, "rw"))
-    if (! is.character(filepath)) halt("bad file name")
-    con <- .Internal(file(filepath, "rb", TRUE, "", "default", FALSE))
-    on.exit(close(con))
-    .Internal(unserializeFromConn(con, baseenv()))
-}
-```
+**修复**: 参数重命名为 `filepath`，并将 `file(filepath, "rb")` 替换为 `.Internal(file(filepath, "rb", TRUE, "", "default", FALSE))`，直接调用 C 层实现，不依赖 R 包装函数。
 
 ### 2. methods 包懒加载数据库缺失
 
-**现象**: 加载 stats4 包时崩溃，找不到 `methods.rdx`。stats4 依赖 methods，methods 加载时 `nspackloader.R` 调用 `lazyLoad()` 找不到 `.rdx` 文件。
-
-**文件**: `src/library/methods/R/zzz.R`
-
-**根因**: HarmonyOS 适配中移除了 `...onLoad` 函数末尾的 `makeLazyLoadDB` 调用。标准 R 中此调用在 `loadNamespace("methods")` 时生成 `methods.rdb`/`methods.rdx`。移除后 Makefile 规则虽然执行了但目标文件没有生成。
-
-**修复**: 构建后手动生成懒加载数据库：
-```bash
-echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
-  R_DEFAULT_PACKAGES=NULL LC_ALL=C ./bin/R --vanilla --no-echo
-```
-
-生成文件：`library/methods/R/methods` (nspackloader), `methods.rdb` (963 KB), `methods.rdx` (23 KB)
+详见第 8a 步。
 
 ### 3. LD_LIBRARY_PATH 导致启动失败 — "promise already under evaluation"
 
@@ -129,27 +312,11 @@ echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
 
 **根因**: configure 从 `LDFLAGS` 的 `-L` 参数收集路径写入 `ldpaths`，这些路径包括 OHOS SDK sysroot、gfortran、harmonybrew 等。包装脚本 `bin/R` 在启动 R 前 source `ldpaths`，将 sysroot 路径加入 `LD_LIBRARY_PATH`。动态链接器优先搜索这些路径时加载了 OHOS SDK 的 libc，与构建宿主机的 musl 环境不兼容，导致 R 懒加载期间内部状态不一致。
 
-**修复**: `ldpaths.in` 中忽略 `@R_LD_LIBRARY_PATH@`，只保留 `${R_HOME}/lib`。所有依赖路径已通过 RPATH 编码在二进制中，运行时无需通过环境变量指定：
-```sh
-: ${R_LD_LIBRARY_PATH=${R_HOME}/lib}
-```
-
-同时 `ldpaths.in` 新增 `libohos_stubs.so` 的 LD_PRELOAD 注入代码（见问题 8）。
+**修复**: `ldpaths.in` 中忽略 `@R_LD_LIBRARY_PATH@`，只保留 `${R_HOME}/lib`。所有依赖路径已通过 RPATH 编码在二进制中。
 
 ### 4. `make install` 缺少 NEWS.rds
 
-**现象**: `make install` 因缺少 `NEWS.rds` 失败。
-
-**根因**: `NEWS.rds`、`NEWS.2.rds`、`NEWS.3.rds` 需要在安装前从 `NEWS.Rd` 生成。正常构建流程中这一步在安装阶段自动完成，但交叉编译环境下需要手动执行。
-
-**修复**: 在 `build/doc/` 目录下用 R 生成：
-```bash
-echo 'options(warn=1);saveRDS(tools:::prepare_Rd(tools::parse_Rd(
-  "../../src/R-4.4.3/doc/NEWS.Rd",
-  macros = "../share/Rd/macros/system.Rd"), stages = "install",
-  warningCalls = FALSE), "NEWS.rds")' | ../bin/R --vanilla --no-echo
-# 同样生成 NEWS.2.rds, NEWS.3.rds
-```
+详见第 8b 步。
 
 ### 5. `make install` 缺少 Rscript.1 man page
 
@@ -159,24 +326,7 @@ echo 'options(warn=1);saveRDS(tools:::prepare_Rd(tools::parse_Rd(
 
 ### 6. ohos-lld-wrapper — musl $ORIGIN 不兼容
 
-**现象**: configure 的链接测试全部失败——包括 readline、ncurses 等明明已安装的库。gfortran 和 OpenBLAS 测试也崩溃。
-
-**根因**: 这是 configure 阶段最隐蔽的问题。HarmonyOS musl ld.so **不支持 `$ORIGIN` 标记**在 RUNPATH 中。lld 的 RUNPATH 设置为 `$ORIGIN/../lib`（指向 OHOS SDK 的 llvm/lib），但 musl 完全忽略该标记。结果 lld 运行时找不到自己的 libxml2.so.16，直接崩溃——不是库没装，是 lld 本身无法运行。所有需要链接器的测试因此全部失败。
-
-**修复**: 创建 `ohos-lld-wrapper`，先设置 `LD_LIBRARY_PATH` 指向 OHOS LLVM lib，再 exec lld：
-
-```sh
-#!/bin/sh
-LLVM_LIB=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib
-export LD_LIBRARY_PATH="${LLVM_LIB}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-exec -a "ld.lld" "$LLVM_LIB/../bin/lld" --code-sign "$@"
-```
-
-关键细节：
-- `exec -a "ld.lld"`：lld 是多合一二进制，argv[0] 决定其行为模式，"ld.lld" 触发 Unix 链接器模式
-- `--code-sign`：生成 hmdfs 要求的 `.codesign` 段
-- configure-R.sh 中使用 `-fuse-ld=/path/to/ohos-lld-wrapper`
-- 配置脚本中 `LD_LIBRARY_PATH` 也需直接传给 configure 命令行（bash 导出的环境变量不总是传播到链接器子进程）
+详见第 1 步中 lld 包装器的说明。
 
 ### 7. hmdfs 文件系统限制
 
@@ -184,114 +334,48 @@ exec -a "ld.lld" "$LLVM_LIB/../bin/lld" --code-sign "$@"
 
 **根因**: HarmonyOS 的 hmdfs 分布式文件系统安全机制要求：
 - ELF Type 必须为 **DYN (Shared object file)**——即 PIE 可执行文件
-- 必须有 **`.codesign` section**：这是 hmdfs 的安全隔离标记，仅 lld 的 `--code-sign` 自动生成。bfd 不生成此段，导致 bfd 链接的 R.bin 无法被 `exec()`，bfd 链接的 `.so` 也无法 `dlopen()`
+- 必须有 **`.codesign` section**：仅 lld 的 `--code-sign` 自动生成
 - 不能 strip：`llvm-strip` 在 hmdfs 上原地修改 ELF 时会破坏安全隔离上下文
-
-**影响**: 这是整个移植最基础的要求——**必须使用 lld 链接器**。bfd 链接的文件在 hmdfs 上完全不可用。此前被错误归因为"seccomp 拦截子进程"，实际上 seccomp 确实拦截 `execv()`，但 hmdfs 拒绝对所有 bfd 产物的 exec/dlopen 是更根本的限制。
 
 **验证**:
 ```bash
 readelf -h binary | grep 'Type:'
 # Type: DYN (Shared object file)
-
-readelf -l binary | grep 'interpreter'
-# [Requesting program interpreter: /lib/ld-musl-aarch64.so.1]
-
 readelf -S binary | grep codesign
 # 应有 .codesign section
 ```
-
-**恢复 bfd 构建的排查经验**：如果误用 bfd 重建了 R.bin，hmdfs 会静默返回 EACCES，表现为主进程调 `system()` 或 `system2()` 不返回。这会波及所有子进程操作：`R CMD INSTALL`、`install.packages()`、编译器调用。切换回 lld 重新 `make install` 即可恢复。
 
 ### 8. OHOS libc 裁剪 — libohos_stubs 补齐库
 
 **现象**: Rust 编译时或 R 包运行时遇到 `undefined symbol` 错误。
 
-**根因**: OHOS 的 musl libc 是裁剪版，缺少部分标准符号。这些符号在标准 musl 和 glibc 中都存在，但 OHOS 移除了它们以减小体积。
+**根因**: OHOS 的 musl libc 是裁剪版，缺少部分标准符号。
 
 **补齐方案**: `src/extra/ohos_stubs/ohos_stubs.c` 编译为两种形式：
 
 | 场景 | 方式 | 符号 |
-|---|---|---|
+|------|------|------|
 | Rust 编译时静态链接 | `libohos_stubs.a` | `posix_spawn_file_actions_addchdir_np`（返回 ENOSYS），`__xpg_strerror_r`（转发 strerror_r） |
 | R 包运行时动态注入 | `libohos_stubs.so`（LD_PRELOAD） | 同上 + `pthread_setcanceltype`（返回 0），`pthread_cancel`（返回 0） |
 
-**R 包场景**：`pthread_setcanceltype` 和 `pthread_cancel` 由 cli 包触发——进度条线程在卸载时调用这些函数。缺少时包加载失败。
-
-**构建集成**：
-- 源文件 `src/extra/ohos_stubs/ohos_stubs.c` 通过 `src/extra/Makefile.in` 的 `make.ohos_stubs` 目标自动编译
-- `make && make install` 自动安装 `libohos_stubs.so` 到 `$(Rexeclibdir)`
-- `etc/ldpaths.in` 自动生成 LD_PRELOAD 注入代码
-- 注意 `-fvisibility=hidden` 会默认隐藏所有符号，需要在源文件中使用 `#pragma GCC visibility push(default)` 确保符号被导出
-
 ### 9. OpenBLAS 集成
 
-**现象**: R 默认使用内部 reference BLAS（纯 Fortran 实现，无 SIMD 优化），大型矩阵运算性能低。
-
-**修复**: 集成 harmonybrew 的 OpenBLAS 0.3.29（TARGET=ARMV8, USE_THREAD=1, gfortran 14.2.0）：
-
-**configure 变更**：
-```
---without-blas --without-lapack   →   --with-blas="-lopenblas" --with-lapack
-```
-
-**效果**：
-- libR.so 直接链接 libopenblas.so.0（RUNPATH 已包含 harmonybrew/lib）
-- `sessionInfo()` 显示 LAPACK: libopenblas_armv8p-r0.3.29.so (LAPACK v3.12.0)
-- libRblas.so 仍作为内部 reference BLAS 存在但不再使用
-- 1000x1000 矩阵乘法: 0.48s (~4.2 GFLOPs)，比 reference BLAS 快 10-15x
-
-**OpenBLAS 交叉编译项目**: https://github.com/sxgou/openblas-harmonyos
+R 配置时使用 `--with-blas="-lopenblas" --with-lapack`，libR.so 直接链接 libopenblas.so.0。1000x1000 矩阵乘法在 20 核 aarch64 上约 0.48s（~4.2 GFLOPs）。
 
 ### 10. `bin/exec/` 遗留文件导致多架构构建错误
 
-**现象**: `R CMD INSTALL` 或 `install.packages()` 安装 R 包时报错：`make: *** No rule to make target 'fastmap.o'`，随后尝试 `*** arch - R.bfd`。
-
-**根因**: `R CMD INSTALL` 默认启用 multiarch，扫描 `bin/exec/` 中的每个文件/目录视为子架构。若遗留了测试文件 `R.bfd`（BFD 链接器测试时生成），R 会为它尝试构建，但因 `etc/R.bfd/Makeconf` 不存在而失败。install.R 的检测逻辑为 `archs <- Sys.glob("*")`——它无法区分正式 R 可执行文件和遗留文件。
-
-**修复**: `src/main/Makefile.in` 的 `install-bin` 目标自动删除 `bin/exec/` 中的非 R 文件：
-```makefile
-install-bin: installdirs
-    @$(SHELL) $(top_srcdir)/tools/copy-if-change $(R_binary) "$(DESTDIR)$(Rexecbindir2)/R"
-    @rm -f "$(DESTDIR)$(Rexecbindir2)/R.bfd" "$(DESTDIR)$(Rexecbindir2)/test-exec" "$(DESTDIR)$(Rexecbindir2)/test-sh"
-```
-
-验证：`make install` 后 `ls $R_HOME/bin/exec/` 应仅包含 `R`。
+`src/main/Makefile.in` 的 `install-bin` 目标已自动删除 `bin/exec/` 中的非 R 文件（R.bfd, test-exec, test-sh）。
 
 ### 11. gzfile 压缩导致 vignette 安装失败
 
-**现象**: `install.packages("jsonlite")` 编译成功、帮助索引安装完成，但在 `** installing vignettes` 步骤失败：`Error in readRDS(indexname) : unknown input format`。
+**修复**: `src/library/tools/R/admin.R` 中 `.install_package_vignettes3` 对 `readRDS` 添加了 fallback——读取原始字节后用 `memDecompress()` 解压 gzip，再用 `unserialize()` 解析。R 内置的 zlib 实现不依赖 `gzfile` 连接，可绕过 seccomp 限制。
 
-**根因**: 
-1. CRAN 包的 `build/vignette.rds` 使用 gzip 压缩
-2. HarmonyOS 上 `gzfile()` 被 patch 为 `file()`（seccomp 拦截 zlib 操作），读取时不解压直接返回原始压缩字节
-3. `readRDS()` 收到压缩字节，解析为 R 序列化格式时失败
-
-**修复**: `src/library/tools/R/admin.R` 中 `.install_package_vignettes3` 的 `readRDS` 包装 fallback：
-```r
-vignetteIndex <- tryCatch(readRDS(indexname), error = function(e) {
-    rawdata <- readBin(indexname, raw(), file.info(indexname)$size)
-    decompressed <- memDecompress(rawdata, "gzip")
-    unserialize(decompressed)
-})
-```
-
-`memDecompress()` 使用 R 内置的 zlib 实现，不依赖 `gzfile` 连接，可绕过 seccomp 限制。
-
-## 安装位置
-
-| 组件 | 路径 |
-|---|---|
-| R Home | `~/.local/R/lib/R/` |
-| R 二进制 | `~/.local/R/lib/R/bin/exec/R` |
-| libR.so | `~/.local/R/lib/R/lib/libR.so` |
-| Base 包 | `~/.local/R/lib/R/library/*/` |
-| 包装脚本 | `~/.local/R/lib/R/bin/R` |
+---
 
 ## 构建产物
 
 | 产物 | 大小 | 说明 |
-|---|---|---|
+|------|------|------|
 | libR.so | 3.2 MB | R 共享库 |
 | R.bin | 22 KB | R 主执行体 (PIE) |
 | Rscript | 24 KB | R 脚本前端 (PIE) |
@@ -302,19 +386,21 @@ vignetteIndex <- tryCatch(readRDS(indexname), error = function(e) {
 | libRlapack.so | 1.7 MB | LAPACK Fortran 实现 |
 | libohos_stubs.so | — | libc 补齐库 |
 
+---
+
 ## 验证
 
 ```bash
 # 版本信息
-LC_ALL=C /path/to/R/bin/R --version
+LC_ALL=C ~/.local/R/lib/R/bin/R --version
 
 # 启动并加载所有关键包
-R_HOME=/path/to/R LC_ALL=C /path/to/R/bin/exec/R --vanilla --no-echo \
+LC_ALL=C ~/.local/R/lib/R/bin/R --vanilla --no-echo \
   -e 'library(methods); library(stats4); cat("OK\n")'
 
-# 通过包装脚本
-LC_ALL=C /path/to/R/bin/R --vanilla --no-echo \
-  -e 'cat("R version:", R.version.string, "\n")'
+# 矩阵运算测试
+LC_ALL=C ~/.local/R/lib/R/bin/R --vanilla --no-echo \
+  -e 'm <- matrix(rnorm(1e6), 1000); cat(system.time({m %*% m})[3], "s\n")'
 ```
 
 ## 已验证功能
@@ -331,3 +417,7 @@ LC_ALL=C /path/to/R/bin/R --vanilla --no-echo \
 - [x] Jupyter IRkernel
 - [ ] tcltk（需 Tcl/Tk 运行时）
 - [ ] 推荐包 (MASS, lattice 等)
+
+---
+
+*最后更新: 2026-05-29*
