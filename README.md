@@ -24,9 +24,8 @@ cd build && make && make R
 # 第 6 步：安装到 ~/.local/R/
 make install
 
-# 第 7 步：生成 methods 包懒加载数据库（必需，否则 stats4 等包无法加载）
-echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
-  R_DEFAULT_PACKAGES=NULL LC_ALL=C ./bin/R --vanilla --no-echo
+# 第 7 步：一键安装后处理（生成 methods 懒加载库 + NEWS.rds + 验证）
+bash post-install-R.sh
 ```
 
 > **注意**：以上步骤假设你已准备好 HarmonyOS 交叉编译工具链（OHOS SDK Clang + gfortran + lld 包装器）。如果尚未准备，请先阅读完整构建指南。
@@ -61,6 +60,7 @@ echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
 ├── apply-patches.sh          # 打补丁脚本（configure-R.sh 自动调用）
 ├── build-deps.sh             # 依赖库安装脚本（第 2 步运行）
 ├── configure-R.sh            # 配置脚本（第 4 步运行，自动打补丁 + 交叉编译配置）
+├── post-install-R.sh         # 安装后处理脚本（第 7 步运行）
 └── README.md                 # 本文件
 ```
 

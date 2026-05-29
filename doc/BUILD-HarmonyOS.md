@@ -246,30 +246,19 @@ make install
 
 ### 第 8 步：安装后处理
 
-#### 8a. 生成 methods 包懒加载数据库
-
-stats4 包依赖 methods，methods 的懒加载数据库在标准 R 构建流程中自动生成，但 HarmonyOS 补丁移除了自动生成调用，需手动执行：
+运行一键安装后处理脚本（生成 methods 懒加载库、NEWS.rds、验证完整性）：
 
 ```bash
-echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
-  R_DEFAULT_PACKAGES=NULL LC_ALL=C ./bin/R --vanilla --no-echo
+bash post-install-R.sh
 ```
 
-生成文件：`library/methods/R/methods` (nspackloader), `methods.rdb` (963 KB), `methods.rdx` (23 KB)
+此脚本自动完成：
 
-#### 8b. 生成 NEWS.rds
+1. **生成 methods 包懒加载数据库** — 生成 `library/methods/R/methods`、`methods.rdb` (963 KB)、`methods.rdx` (23 KB)。stats4 等依赖 methods 的包需要此文件，否则加载失败。
+2. **生成 NEWS.rds / NEWS.2.rds / NEWS.3.rds** — 如果 `make install` 未自动生成，从 `NEWS.Rd` 编译。
+3. **验证安装完整性** — 检查 R 二进制、libR.so、libohos_stubs.so 以及 base/methods/stats 等关键包是否就位。
 
-`make install` 会在安装时自动生成 `NEWS.rds`，但如果交叉编译环境下此步骤失败，需手动生成：
-
-```bash
-cd build/doc
-echo 'options(warn=1);saveRDS(tools:::prepare_Rd(tools::parse_Rd(
-  "../../src/R-4.4.3/doc/NEWS.Rd",
-  macros = "../share/Rd/macros/system.Rd"), stages = "install",
-  warningCalls = FALSE), "NEWS.rds")' | ../bin/R --vanilla --no-echo
-```
-
-对 `NEWS.2.Rd` 和 `NEWS.3.Rd` 重复上述命令（改文件名即可）。
+脚本可在项目根目录重复运行（已存在的步骤自动跳过）。
 
 ---
 
