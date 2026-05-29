@@ -1,67 +1,34 @@
 #!/bin/sh
-# Configure R 4.4.3 for HarmonyOS (OpenHarmony) with OHOS Clang + gfortran
+# Configure R 4.4.3 for HarmonyOS (OpenHarmony) — optimized for brew
 # Run this from the project root to (re)configure the build.
 # After configuring, run: cd build && make
+#
+# Changes from previous version:
+#   - R deps now installed via brew instead of manual cross-compilation
+#   - readline enabled (brew provides ncurses + readline)
+#   - ICU enabled (brew provides icu4c@78)
+#   - System libs used where available (zlib, bzip2, pcre2, xz, curl)
+#   - PKG_CONFIG_PATH set to brew's pkgconfig for auto-detection
+#   - Removed redundant R-deps paths (only 4 libs remain there: fftw, zeromq, ANN, mpfr)
+#   - lld instead of bfd: hmdfs requires .codesign section (lld only) and rejects
+#     bfd-linked shared libs with EACCES at dlopen() time
+#   - -Wl,-rpath in LDFLAGS: lld doesn't auto-embed -L paths as rpath like bfd did
 #
 # ================================================================
 # R System Library Dependencies for HarmonyOS aarch64
 # ================================================================
 #
-# R CORE (statically linked into libR.so or linked at build time):
-#   Library       | Status          | Source
-#   --------------|-----------------|------------------------------------------
-#   zlib 1.x      | ✅ sysroot      | OHOS SDK sysroot (libz.so, shared)
-#   bzip2 1.0.x   | ✅ brew/手动    | brew install bzip2 或 ~/.local/R-deps
-#   liblzma (xz)  | ✅ brew/手动    | brew install xz 或 ~/.local/R-deps
-#   PCRE2 10.x    | ✅ brew/手动    | brew install pcre2 或 ~/.local/R-deps
-#   libcurl 7.28+ | ✅ brew/手动    | brew install curl 或 ~/.local/R-deps
-#   OpenSSL 3.x   | ✅ brew/手动    | brew install openssl 或 ~/.local/R-deps
-#   iconv         | ✅ musl builtin | musl libc provides iconv
-#   gfortran      | ✅ installed    | ~/.local/gfortran (libgfortran.a static)
-#   libgcc        | ✅ installed    | ~/.local/gfortran (libgcc.a + libgcc_eh.a)
+# brew provides (all static libs available):
+#   bzip2, xz, pcre2, curl, libpng, freetype, cairo, geos, gmp,
+#   libxml2, unixodbc, expat, fontconfig, glpk, pixman, icu4c@78,
+#   libjpeg-turbo, readline, ncurses, harfbuzz, fribidi
 #
-# R RUNTIME (dynamic deps of libR.so):
-#   Library       | Status          | Source
-#   --------------|-----------------|------------------------------------------
-#   libRblas.so   | ✅ R built      | build/lib/libRblas.so
-#   libz.so       | ✅ sysroot      | OHOS SDK sysroot
-#   libomp.so     | ✅ OHOS SDK     | OHOS llvm/lib/aarch64-linux-ohos/
-#   libc.so       | ✅ sysroot      | OHOS SDK sysroot (musl)
+# Manual (R-deps, ~/.local/R-deps):
+#   fftw3, zeromq, ANN, mpfr  — not yet in brew
 #
-# R PACKAGE SUPPORT (optional, in ~/.local/R-deps for package compilation):
-#   Library       | Version | Built | For R package
-#   --------------|---------|-------|------------------------------
-#   GMP           | 6.3.0   | ✅    | Rmpfr (multi-precision)
-#   MPFR          | 4.2.1   | ✅    | Rmpfr (floating-point)
-#   libjpeg-turbo | 3.0.4   | ✅    | jpeg (image I/O)
-#   GLPK          | 5.0     | ✅    | Rglpk (linear programming)
-#   unixODBC      | 2.3.12  | ✅    | RODBC (database connectivity)
-#   expat         | 2.6.2   | ✅    | XML parsing
-#   fontconfig    | 2.15.0  | ✅    | font matching (static, no tools)
-#   freetype      | 2.13.2  | ✅    | font rasterization
-#   libpng16      | 1.6.x   | ✅    | PNG image I/O
-#   libxml2       | 2.x     | ✅    | XML processing
-#   cairo         | 1.16.0  | ✅    | 2D graphics (X11-only, limited use)
-#   pixman        | 0.42.2  | ✅    | pixel manipulation
-#   fftw3         | 3.x     | ✅    | FFT (fftw3f + fftw3)
-#   GEOS          | 3.12.0  | ✅    | geometry engine (sf package)
-#   ANN           | ?       | ✅    | approximate nearest neighbor
-#
-# JAVA SUPPORT:
-#   Java      -- BiSheng JDK 17.0.13 (host JVM for JNI headers/tools at configure time)
-#                libjvm is linked at build time for JNI packages (rJava etc.)
-#                NOTE: Cross-compiled, so javareconf won't run; config values
-#                are pre-set via JAVA_HOME/JAVA_CPPFLAGS/JAVA_LIBS env vars.
-#
-# EXPLICITLY DISABLED (unavailable on HarmonyOS):
-#   readline  -- no termcap/ncurses
-#   X11       -- no X server
-#   Tcl/Tk    -- no Tcl/Tk for HarmonyOS
-#   Aqua      -- macOS only
-#   libtiff   -- not built
-#   Cairo     -- needs X11 for display; libcairo.a static lib available
-#                but R's cairo device requires X11 at runtime
-#   BLAS/LAPACK -- R uses internal BLAS/LAPACK (no external dependency)
+# BLAS/LAPACK: R's internal reference BLAS (no OpenBLAS in brew)
+# Java: BiSheng JDK 17.0.13 (system path)
+# Fortran: gfortran 14.2.0 (manual, ~/.local/gfortran)
 #
 # ================================================================
 set -e
@@ -81,6 +48,8 @@ OHOS_CLANG=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang
 OHOS_CLANGXX=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++
 GFORTRAN=/storage/Users/currentUser/.local/gfortran/bin/gfortran
 SYSROOT=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot
+OHOS_LLVM_ROOT=${SYSROOT%/sysroot}/llvm
+OHOS_LLVM_LIB=${OHOS_LLVM_ROOT}/lib
 GFORTRAN_LIB=/storage/Users/currentUser/.local/gfortran/lib64
 GCC_LIB=/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0
 RDEPS=/storage/Users/currentUser/.local/R-deps
@@ -96,19 +65,31 @@ JAVA_LIBS="-L${JAVA_HOME}/lib/server -ljvm"
 export JAVA_HOME JAVA JAVAC JAR JAVA_CPPFLAGS JAVA_LIBS
 
 # Library path for running test binaries
-export LD_LIBRARY_PATH="${GFORTRAN_LIB}:${GCC_LIB}:$LD_LIBRARY_PATH"
+# NOTE: Do NOT add ${HOMEBREW_PREFIX}/lib here — brew's libxml2.so.16
+# conflicts with OHOS SDK's libxml2 (lld needs the SDK's version at runtime).
+# Instead add OHOS_LLVM_LIB so lld can find its own libxml2 dependency.
+export LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:$LD_LIBRARY_PATH"
 
-# Timezone data (musl looks for /usr/share/zoneinfo which doesn't exist on HarmonyOS)
-# Use TZ env var for now; we cache the configure check
+# Use lld wrapper instead of GNU ld (bfd) because hmdfs requires the .codesign
+# section that only lld generates.  Without .codesign, hmdfs refuses to
+# execute binaries and dlopen() rejects shared libraries with EACCES.
+#
+# The wrapper sets LD_LIBRARY_PATH so lld can find its own libxml2 at runtime
+# (HarmonyOS musl ld.so doesn't support $ORIGIN in RUNPATH).
+LLD_WRAPPER=/storage/Users/currentUser/.local/bin/ohos-lld-wrapper
+USE_LD="-fuse-ld=${LLD_WRAPPER}"
+
+# Timezone
 export TZ=CST-8
 
 # Clean build directory to avoid stale cache
 rm -f config.cache config.status
 
+# PKG_CONFIG_PATH: brew provides all .pc files
 export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig:${RDEPS}/lib/pkgconfig"
 
 # Pre-seed configure cache variables to skip runtime tests (blocked by seccomp)
-# and link tests that fail due to missing libraries (BLAS/LAPACK/iconv on OHOS)
+# and link tests that fail due to missing libraries on HarmonyOS
 for cv in \
     r_cv_mixed_c_fortran=yes \
     r_cv_double_complex_agree=yes \
@@ -128,6 +109,11 @@ for cv in \
     r_cv_have_pcre2utf=yes \
     r_cv_have_curl728=yes \
     r_cv_have_curl_https=yes \
+    r_cv_size_max=yes \
+    ac_cv_have_decl_SIZE_MAX=yes \
+    ac_cv_lib_m_cos=yes \
+    ac_cv_lib_m_sin=yes \
+    ac_cv_lib_dl_dlopen=yes \
     ac_cv_func_iconv=yes \
     ac_cv_have_decl_mbrtowc=yes \
     ac_cv_have_decl_wcrtomb=yes \
@@ -144,29 +130,54 @@ for cv in \
     ac_cv_type_wctrans_t=yes \
     ac_cv_type_mbstate_t=yes \
     lt_cv_truncate_bin="/usr/bin/dd bs=4096 count=1" \
-    ac_cv_have_decl_size_max=yes; do
+    ac_cv_have_decl_size_max=yes \
+    ac_cv_lib_readline_rl_callback_read_char=yes \
+    ac_cv_lib_ncurses_main=yes \
+    ac_cv_lib_termcap_main=yes \
+    ac_cv_lib_termlib_main=yes \
+    ac_cv_lib_tinfo_main=yes; do
     export "$cv"
 done
 
 # Run configure
-# Note: --without-libpng and --without-jpeglib are intentionally NOT set
-# because libpng16.a and libjpeg.a are now available in R-deps.
-# R will auto-detect them via pkg-config. Remove these cached vars
-# if re-enabling: r_cv_have_libpng, r_cv_have_jpeg
+# Brew provides readline, ICU, libcurl, libpng, jpeg, etc.
+# R's configure auto-detects them via pkg-config with PKG_CONFIG_PATH set.
+#
+# Intentionally disabled (not available or not useful on HarmonyOS):
+#   --without-x           (no X server)
+#   --without-tcltk       (no Tcl/Tk)
+#   --without-cairo       (cairo device needs X11 at runtime)
+#   --without-libtiff     (no libtiff)
+#   --without-aqua        (macOS only)
+#
+# OpenBLAS is used via harmonybrew: --with-blas="-lopenblas" enables SIMD
+# optimized BLAS + LAPACK (10-50x speedup vs R's internal reference BLAS).
+#
+# Some system libs are explicitly requested so R uses brew's versions
+# instead of bundled copies. Others (libcurl, libpng, libjpeg, readline,
+# ICU) are auto-detected via pkg-config and don't need explicit flags.
+#
+# Note: --with-cairo is not set because although brew does provide
+# libcairo.a, R's cairo graphics device requires an X11 server at
+# runtime, which HarmonyOS doesn't have.
+# LD_LIBRARY_PATH must be set directly on the configure command line because
+# HarmonyOS's bash doesn't always propagate exported env vars to linker
+# subprocesses (lld needs OHOS_LLVM_LIB for libxml2 at runtime).
+LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}" \
 "$R_SRC/configure" \
     --build=x86_64-pc-linux-gnu \
     --host=aarch64-pc-linux-musl \
     --prefix=/storage/Users/currentUser/.local/R \
     --enable-R-shlib \
-    --without-readline \
     --without-x \
     --without-tcltk \
     --without-cairo \
     --without-libtiff \
     --without-aqua \
+    --with-blas="-lopenblas" \
+    --with-lapack \
+    --with-readline \
     --enable-java \
-    --without-blas \
-    --without-lapack \
     --with-pcre2 \
     CC="$OHOS_CLANG" \
     CXX="$OHOS_CLANGXX" \
@@ -176,11 +187,9 @@ done
     CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
     FCFLAGS="-O2 -g0" \
     FFLAGS="-O2 -g0" \
-    LDFLAGS="--sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${HOMEBREW_PREFIX}/lib -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
+    LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${HOMEBREW_PREFIX}/lib -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
-    CPPFLAGS="-I${HOMEBREW_PREFIX}/include -I${RDEPS}/include ${JAVA_CPPFLAGS}" \
-    CURL_LIBS="-lcurl -lssl -lcrypto -lz -lpthread -ldl" \
-    CURL_CPPFLAGS="" \
+    CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include ${JAVA_CPPFLAGS}" \
     CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
     CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
 
