@@ -6,11 +6,13 @@ R 4.4.3 移植到 HarmonyOS (aarch64-linux-ohos) 原生平台。
 
 ```
 ├── build/                  # 构建输出
-├── src/R-4.4.3/            # R 4.4.3 源代码（已打补丁）
-│   └── src/extra/ohos_stubs/ohos_stubs.c  # libc 补齐库
+├── src/R-4.4.3/            # R 4.4.3 源代码（从 CRAN 下载）
+├── patches/                # HarmonyOS 适配补丁
+│   ├── *.patch             # 源码修改补丁（14 个）
+│   └── new-files/          # 新增文件（ohos_stubs.c + Makefile.in）
+├── apply-patches.sh        # 自动打补丁脚本
 ├── configure-R.sh          # 配置脚本
 ├── rharmonyos              # R 启动包装器
-├── install-package         # 包安装脚本
 ├── BUILD-HarmonyOS.md      # 构建指南与已知问题
 └── doc/                    # 文档
 ```
