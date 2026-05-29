@@ -1,0 +1,21 @@
+--- R-4.4.3.orig/R-4.4.3/src/library/tools/R/Rd.R	2024-04-04 06:15:01.000000000 +0800
++++ R-4.4.3/src/library/tools/R/Rd.R	2026-05-29 10:22:04.089058751 +0800
+@@ -365,7 +365,17 @@
+     names(files) <- files
+     if(!is.null(built_file) && file_test("-f", built_file)) {
+         basenames <- basename(files)
+- 	built <- readRDS(built_file)
++ 	built <- tryCatch(readRDS(built_file), error = function(e) {
++ 	    ## HarmonyOS: gzfile cannot read pre-compressed RDS files.
++ 	    ## Fall back to raw decompression via memDecompress + unserialize.
++ 	    tryCatch({
++ 	        rawdata <- readBin(built_file, raw(), file.info(built_file)$size)
++ 	        decompressed <- memDecompress(rawdata, "gzip")
++ 	        unserialize(decompressed)
++ 	    }, error = function(e2) {
++ 	        stop("cannot read built_file: ", conditionMessage(e2))
++ 	    })
++ 	})
+  	names_built <- names(built)
+         ## Hmm ... why are we doing this?
+  	if ("install" %in% stages) {

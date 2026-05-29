@@ -1,0 +1,16 @@
+--- R-4.4.3.orig/R-4.4.3/share/make/lazycomp.mk	2018-09-25 16:47:03.000000000 +0800
++++ R-4.4.3/share/make/lazycomp.mk	2026-05-03 23:22:35.388371875 +0800
+@@ -7,11 +7,11 @@
+ $(top_builddir)/library/$(pkg)/R/$(pkg).rdb: all.R
+ 	@$(INSTALL_DATA) all.R $(top_builddir)/library/$(pkg)/R/$(pkg)
+ 	@if test -n "$(R_NO_BASE_COMPILE)"; then \
+-	 $(ECHO) "tools:::makeLazyLoading(\"$(pkg)\")" | \
++	 $(ECHO) "tools:::makeLazyLoading(\"$(pkg)\", compress = FALSE)" | \
+ 	  R_DEFAULT_PACKAGES=$(DEFPKGS) LC_ALL=C $(R_EXE) > /dev/null; \
+ 	else \
+ 	 $(ECHO) "byte-compiling package '$(pkg)'"; \
+-	 $(ECHO) "tools:::makeLazyLoading(\"$(pkg)\")" | \
++	 $(ECHO) "tools:::makeLazyLoading(\"$(pkg)\", compress = FALSE)" | \
+ 	  _R_COMPILE_PKGS_=1 R_COMPILER_SUPPRESS_ALL=1 \
+ 	  R_DEFAULT_PACKAGES=$(DEFPKGS) LC_ALL=C $(R_EXE) > /dev/null; \
+ 	fi

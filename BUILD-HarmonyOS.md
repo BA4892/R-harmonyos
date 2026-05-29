@@ -33,20 +33,26 @@
 ## 构建步骤
 
 ```bash
-# 1. 配置
+# 1. 下载并解压 R 4.4.3 源码
+curl -L https://cran.r-project.org/src/base/R-4/R-4.4.3.tar.gz | tar xz -C src/
+
+# 2. 自动打补丁（HMOS 适配、libc 补齐库等）
+bash apply-patches.sh
+
+# 3. 配置
 ./configure-R.sh
 
-# 2. 编译 R 核心 + base 包
+# 4. 编译 R 核心 + base 包
 cd build && make && make R
 
-# 3. 安装
+# 5. 安装
 make install                          # 安装到 --prefix 指定目录
 
-# 4. 手动生成 methods 包懒加载数据库（问题 2）
+# 6. 手动生成 methods 包懒加载数据库（问题 2）
 echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
   R_DEFAULT_PACKAGES=NULL LC_ALL=C ./bin/R --vanilla --no-echo
 
-# 5. 生成 NEWS.rds（问题 4）
+# 7. 生成 NEWS.rds（问题 4）
 # 见下方问题 4
 ```
 

@@ -1,14 +1,5 @@
 # Build artifacts
 build/*
-!build/fix_base.c
-!build/backtrace_stub.c
-!build/etc/
-!build/lib/
-build/etc/*
-!build/etc/Rprofile.site
-!build/etc/Makeconf
-build/lib/*
-!build/lib/fixbase.so
 
 # R source (available from CRAN, download separately)
 src/
@@ -35,18 +26,6 @@ tmp/
 
 # Compile logs
 compile-logs/
-
-# Downloaded source tarball directories and archives
-cairo-*/
-cairo-*.tar.*
-fftw-*/
-geos-*/
-geos-*.tar.*
-gmp-*/
-gmp-*.tar.*
-pixman-*/
-pixman-*.tar.*
-libpcap-*/
 
 # OS
 .DS_Store

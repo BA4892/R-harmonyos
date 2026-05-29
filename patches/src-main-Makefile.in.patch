@@ -1,0 +1,10 @@
+--- R-4.4.3.orig/R-4.4.3/src/main/Makefile.in	2024-03-27 07:02:08.000000000 +0800
++++ R-4.4.3/src/main/Makefile.in	2026-05-29 10:44:21.977058907 +0800
+@@ -200,6 +200,7 @@
+ 	@$(MKINSTALLDIRS) "$(DESTDIR)$(Rexecbindir2)"
+ install-bin: installdirs
+ 	@$(SHELL) $(top_srcdir)/tools/copy-if-change $(R_binary) "$(DESTDIR)$(Rexecbindir2)/R"
++	@rm -f "$(DESTDIR)$(Rexecbindir2)/R.bfd" "$(DESTDIR)$(Rexecbindir2)/test-exec" "$(DESTDIR)$(Rexecbindir2)/test-sh"
+ install-lib: installdirs
+ 	@$(MKINSTALLDIRS) "$(DESTDIR)$(Rexeclibdir)"
+ 	@$(SHELL) $(top_srcdir)/tools/copy-if-change $(libR_la) "$(DESTDIR)$(Rexeclibdir)/$(libR_la)"

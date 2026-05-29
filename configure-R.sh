@@ -82,6 +82,13 @@ USE_LD="-fuse-ld=${LLD_WRAPPER}"
 # Timezone
 export TZ=CST-8
 
+# Apply HarmonyOS patches to R source tree
+echo "Applying HarmonyOS patches to ${R_SRC}..."
+bash "${R_SRC}/../apply-patches.sh" 2>&1 || {
+    echo "Warning: patch application failed. Continuing anyway."
+    echo "Some patches may already be applied."
+}
+
 # Clean build directory to avoid stale cache
 rm -f config.cache config.status
 

@@ -1,0 +1,11 @@
+--- R-4.4.3.orig/R-4.4.3/src/library/base/R/load.R	2024-03-27 07:02:03.000000000 +0800
++++ R-4.4.3/src/library/base/R/load.R	2026-05-03 22:40:21.032056718 +0800
+@@ -21,7 +21,7 @@
+     if (is.character(file)) {
+         ## files are allowed to be of an earlier format
+         ## gzfile can open gzip, bzip2, xz and uncompressed files.
+-        con <- gzfile(file)
++        con <- file(file)
+         on.exit(close(con))
+         ## Since the connection is not open this opens it in binary mode
+         ## and closes it again.
