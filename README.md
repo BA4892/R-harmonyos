@@ -81,9 +81,10 @@ bash post-install-R.sh
 | 选项 | 值 |
 |------|-----|
 | 目标平台 | aarch64-linux-ohos, HarmonyOS HongMeng Kernel 1.12.0 |
-| 工具链 | OHOS SDK 26.0.0.18 (Clang 15.0.4) + gfortran 14.2.0 |
+| 工具链 | OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos) |
 | 链接器 | lld（hmdfs 要求 `.codesign` 段） |
-| BLAS/LAPACK | OpenBLAS 0.3.29（1000x1000 MM ~0.48s） |
+| BLAS/LAPACK | [OpenBLAS 0.3.29](https://github.com/sxgou/openblas-harmonyos)（1000x1000 MM ~0.48s） |
+| 包管理器 | [harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony) |
 | Cairo | 支持（PNG/SVG/PDF 后端） |
 | readline | 启用（Tab 补全和方向键） |
 | Java | BiSheng JDK 17 |

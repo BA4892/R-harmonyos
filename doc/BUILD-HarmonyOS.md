@@ -5,9 +5,10 @@
 将 R 4.4.3 交叉编译到 HarmonyOS (aarch64-linux-ohos) 平台。
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
-- **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + gfortran 14.2.0
+- **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos)
 - **链接器**: lld（hmdfs 要求 `.codesign` 段，仅 lld 生成）
-- **BLAS/LAPACK**: OpenBLAS 0.3.29（harmonybrew，1000x1000 MM ~0.48s / ~4.2 GFLOPs）
+- **BLAS/LAPACK**: [OpenBLAS 0.3.29](https://github.com/sxgou/openblas-harmonyos)（harmonybrew，1000x1000 MM ~0.48s / ~4.2 GFLOPs）
+- **包管理器**: [harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony)
 - **Cairo**: 支持（brew cairo 1.18.4 + fontconfig 2.17.1，PNG/SVG/PDF 后端可用）
 - **readline**: 启用（brew libreadline + ncurses，Tab 补全和方向键可用）
 - **Java**: BiSheng JDK 17
@@ -26,15 +27,15 @@
 
 ## 构建环境
 
-| 组件 | 路径 |
-|------|------|
-| OHOS SDK | `/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/` |
-| C/C++ 编译器 | `/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++` |
-| Fortran | `~/.local/gfortran/bin/gfortran` |
-| Java | `/data/service/hnp/bishengjdk17.0.13_06.org/` |
-| lld 包装器 | `~/.local/bin/ohos-lld-wrapper` |
-| 系统 library | `~/.local/R/lib/R/` |
-| harmonybrew | `~/.harmonybrew/` |
+| 组件 | 路径 | 参考 |
+|------|------|------|
+| OHOS SDK | `/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/` | 华为官方 |
+| C/C++ 编译器 | `/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++` | OHOS SDK 自带 |
+| Fortran | `~/.local/gfortran/bin/gfortran` | [gfortran-harmonyos](https://github.com/sxgou/gfortran-harmonyos) |
+| Java | `/data/service/hnp/bishengjdk17.0.13_06.org/` | 华为官方 |
+| lld 包装器 | `~/.local/bin/ohos-lld-wrapper` | 本指南第 1 步创建 |
+| harmonybrew | `~/.harmonybrew/` | [Harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony) |
+| OpenBLAS | harmonybrew 提供 | [openblas-harmonyos](https://github.com/sxgou/openblas-harmonyos) |
 
 ### 依赖库
 
@@ -74,7 +75,8 @@ Prerequisites (Step 1)          — 工具链准备
 # OHOS SDK — 检查 clang 可用
 aarch64-unknown-linux-ohos-clang --version
 
-# gfortran 交叉编译器
+# gfortran 交叉编译器（从以下项目获取）
+#   https://github.com/sxgou/gfortran-harmonyos
 ~/.local/gfortran/bin/gfortran --version
 
 # BiSheng JDK 17
@@ -83,6 +85,16 @@ java -version
 # lld 包装器 — 见下方说明
 ~/.local/bin/ohos-lld-wrapper --help
 ```
+
+**获取各工具链**：
+
+| 组件 | 获取方式 |
+|------|----------|
+| OHOS SDK + Clang | 华为官方分发，或 DevEco Studio 自带 |
+| gfortran 交叉编译器 | 从 [gfortran-harmonyos](https://github.com/sxgou/gfortran-harmonyos) 下载预编译包，解压到 `~/.local/gfortran/` |
+| BiSheng JDK 17 | 华为官方分发 |
+| harmonybrew | 从 [Harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony) 安装，提供 pcre2、curl、cairo、openblas 等依赖库 |
+| OpenBLAS | harmonybrew 自带，或从 [openblas-harmonyos](https://github.com/sxgou/openblas-harmonyos) 自行编译 |
 
 **lld 包装器**：必须安装 `~/.local/bin/ohos-lld-wrapper`，内容如下：
 

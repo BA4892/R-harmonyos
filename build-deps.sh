@@ -1,6 +1,10 @@
 #!/bin/sh
 # R dependencies for HarmonyOS
 # ============================================================
+# harmonybrew: https://gitcode.com/Harmonybrew/homebrew-harmony
+# gfortran:    https://github.com/sxgou/gfortran-harmonyos
+# OpenBLAS:    https://github.com/sxgou/openblas-harmonyos
+#
 # Preferred: install via harmonybrew
 #   brew install bzip2 xz pcre2 openssl curl libpng freetype \
 #              cairo geos gmp libxml2 pixman libjpeg unixodbc \
