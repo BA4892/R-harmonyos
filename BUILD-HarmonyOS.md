@@ -8,6 +8,7 @@
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + gfortran 14.2.0
 - **链接器**: lld（hmdfs 要求 `.codesign` 段，仅 lld 生成）
 - **BLAS/LAPACK**: OpenBLAS 0.3.29（harmonybrew，1000x1000 MM ~0.48s / ~4.2 GFLOPs）
+- **Cairo**: 支持（brew cairo 1.18.4 + fontconfig 2.17.1，PNG/SVG/PDF 后端可用）
 - **readline**: 启用（brew libreadline + ncurses，Tab 补全和方向键可用）
 - **Java**: BiSheng JDK 17
 
@@ -58,7 +59,7 @@ echo 'tools:::makeLazyLoading("methods", compress = FALSE)' | \
 --with-blas=-lopenblas               # OpenBLAS（SIMD 优化）
 --with-lapack                        # OpenBLAS LAPACK（与 BLAS 同库）
 --enable-java                        # BiSheng JDK 17
---without-x --without-tcltk          # HarmonyOS 无 X11/TclTk
+--without-x --without-tcltk          # X11 不可用（brew 无 libXt），无 Tcl/Tk
 --disable-nls                        # 可选，减少依赖
 ```
 

@@ -37,6 +37,7 @@ cd build && make && make R && make install
 |---|---|
 | 链接器 | `-fuse-ld=ohos-lld-wrapper` |
 | BLAS/LAPACK | OpenBLAS 0.3.29（harmonybrew，1000x1000 MM ~0.48s） |
+| Cairo | 支持（brew cairo 1.18.4 + fontconfig 2.17.1） |
 | readline | 启用（brew libreadline + ncurses，Tab 补全和方向键可用） |
 | Java | BiSheng JDK 17 |
 | 交叉编译 | x86_64 → aarch64-pc-linux-musl |
@@ -83,6 +84,6 @@ cd build && make && make R && make install
 
 - **gzfile() 不可用**：seccomp 过滤 zlib。包安装需 `compress=FALSE`；预压缩 vignette.rds 通过 `memDecompress()` + `unserialize()` 变通读取
 - **Rscript 不可用**：seccomp 阻止 `execv()`，`Rscript -e` 返回 Permission denied
-- **Cairo 包无 fontconfig**：brew fontconfig 仅存根，需静态链接 Cairo + 禁用 FreeType
+- **Cairo PNG/SVG/PDF**：可用（brew cairo + fontconfig 完整支持）。X11 后端不可用（无 X server）
 - **无 X11 / Tcl/Tk**
 - **ELF 不可 strip**：hmdfs 安全隔离上下文被破坏

@@ -86,7 +86,8 @@ export TZ=CST-8
 rm -f config.cache config.status
 
 # PKG_CONFIG_PATH: brew provides all .pc files
-export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig:${RDEPS}/lib/pkgconfig"
+# Note: share/pkgconfig needed for xorgproto (X11 proto .pc files)
+export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig:${HOMEBREW_PREFIX}/share/pkgconfig:${RDEPS}/lib/pkgconfig"
 
 # Pre-seed configure cache variables to skip runtime tests (blocked by seccomp)
 # and link tests that fail due to missing libraries on HarmonyOS
@@ -144,22 +145,22 @@ done
 # R's configure auto-detects them via pkg-config with PKG_CONFIG_PATH set.
 #
 # Intentionally disabled (not available or not useful on HarmonyOS):
-#   --without-x           (no X server)
 #   --without-tcltk       (no Tcl/Tk)
-#   --without-cairo       (cairo device needs X11 at runtime)
 #   --without-libtiff     (no libtiff)
 #   --without-aqua        (macOS only)
+#
+# X11 is auto-detected via pkg-config now that brew provides libx11 + xorgproto.
+# Cairo is auto-detected (fontconfig is now fully installed in brew, not a stub).
+# The X11 graphics device requires a running X server (e.g., XWayland or SSH -X),
+# but Cairo's PNG/SVG/PDF backends work without X11.
 #
 # OpenBLAS is used via harmonybrew: --with-blas="-lopenblas" enables SIMD
 # optimized BLAS + LAPACK (10-50x speedup vs R's internal reference BLAS).
 #
 # Some system libs are explicitly requested so R uses brew's versions
 # instead of bundled copies. Others (libcurl, libpng, libjpeg, readline,
-# ICU) are auto-detected via pkg-config and don't need explicit flags.
+# ICU, X11) are auto-detected via pkg-config and don't need explicit flags.
 #
-# Note: --with-cairo is not set because although brew does provide
-# libcairo.a, R's cairo graphics device requires an X11 server at
-# runtime, which HarmonyOS doesn't have.
 # LD_LIBRARY_PATH must be set directly on the configure command line because
 # HarmonyOS's bash doesn't always propagate exported env vars to linker
 # subprocesses (lld needs OHOS_LLVM_LIB for libxml2 at runtime).
@@ -171,7 +172,6 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     --enable-R-shlib \
     --without-x \
     --without-tcltk \
-    --without-cairo \
     --without-libtiff \
     --without-aqua \
     --with-blas="-lopenblas" \
