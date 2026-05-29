@@ -11,6 +11,10 @@
 
 set -e
 
+# Version selection:  bash post-install-R.sh [version]
+# Default is R 4.4.3.
+R_VERSION="${1:-4.4.3}"
+
 # ------ 配置 ------
 # R_HOME 自动检测（优先已安装路径，其次 build 路径）
 if [ -x "$HOME/.local/R/lib/R/bin/R" ]; then
@@ -27,7 +31,7 @@ else
 fi
 
 BUILD_DIR="$(pwd)/build"
-R_SRC="$(pwd)/src/R-4.4.3"
+R_SRC="$(pwd)/src/R-${R_VERSION}"
 
 echo "=== R for HarmonyOS 安装后处理 ==="
 echo "R 可执行文件: $R_BIN"
@@ -64,7 +68,7 @@ else
             continue
         fi
         # 检查源文件是否存在
-        src_rd="../../src/R-4.4.3/doc/$news_rd"
+        src_rd="../../src/R-${R_VERSION}/doc/$news_rd"
         if [ ! -f "$src_rd" ]; then
             echo "  [跳过] $src_rd 不存在"
             continue

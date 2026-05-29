@@ -1,0 +1,26 @@
+--- R-4.4.3.orig/R-4.4.3/src/library/tools/R/admin.R	2024-03-27 07:02:06.000000000 +0800
++++ R-4.4.3/src/library/tools/R/admin.R	2026-05-29 09:05:04.377060001 +0800
+@@ -653,9 +653,21 @@
+     hasHtmlIndex <- file_test("-f", file.path(vignetteDir, "index.html"))
+     htmlIndex <- file.path(outDir, "doc", "index.html")
+ 
+-    vignetteIndex <- readRDS(indexname)
++    vignetteIndex <- tryCatch(readRDS(indexname), error = function(e) {
++        ## HarmonyOS: gzfile connections cannot read pre-compressed files
++        ## due to seccomp restrictions. Fall back to raw decompression.
++        tryCatch({
++            rawdata <- readBin(indexname, raw(), file.info(indexname)$size)
++            decompressed <- memDecompress(rawdata, "gzip")
++            unserialize(decompressed)
++        }, error = function(e2) {
++            warning("cannot read vignette index (compressed format not supported): ",
++                    conditionMessage(e2), call. = FALSE)
++            NULL
++        })
++    })
+ 
+-    if(!hasHtmlIndex)
++    if(!hasHtmlIndex && !is.null(vignetteIndex))
+         .writeVignetteHtmlIndex(packageName, htmlIndex, vignetteIndex)
+ 
+     invisible()

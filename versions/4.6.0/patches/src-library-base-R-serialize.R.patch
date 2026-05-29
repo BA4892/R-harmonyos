@@ -1,0 +1,35 @@
+--- R-4.6.0.orig/R-4.6.0/src/library/base/R/serialize.R.orig	2026-05-29 15:32:42.057060782 +0800
++++ R-4.6.0/src/library/base/R/serialize.R	2026-05-29 15:32:42.145058751 +0800
+@@ -26,12 +26,12 @@
+ 	object <- object # do not create corrupt file if object does not exist
+ 	mode <- if(ascii %in% FALSE) "wb" else "w"
+ 	con <- if (is.logical(compress))
+-		   if(compress) gzfile(file, mode) else file(file, mode)
++		   file(file, mode)
+ 	       else
+ 		   switch(compress,
+ 			  "bzip2" = bzfile(file, mode),
+ 			  "xz"    = xzfile(file, mode),
+-			  "gzip"  = gzfile(file, mode),
++			  "gzip"  = file(file, mode),
+ 			  "zstd"  = zstdfile(file, mode),
+ 			  stop("invalid 'compress' argument: ", compress))
+         on.exit(close(con))
+@@ -49,7 +49,7 @@
+ readRDS <- function(file, refhook = NULL)
+ {
+     if(is.character(file)) {
+-        con <- gzfile(file, "rb")
++        con <- file(file, "rb")
+         on.exit(close(con))
+     } else if (inherits(file, "connection"))
+ 	con <- if(inherits(file, "url")) gzcon(file) else file
+@@ -60,7 +60,7 @@
+ infoRDS <- function(file)
+ {
+     if(is.character(file)) {
+-        con <- gzfile(file, "rb")
++        con <- file(file, "rb")
+         on.exit(close(con))
+     } else if (inherits(file, "connection"))
+         con <- if(inherits(file, "url")) gzcon(file) else file

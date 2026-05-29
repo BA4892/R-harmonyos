@@ -33,13 +33,19 @@
 # ================================================================
 set -e
 
+# Version selection:  bash configure-R.sh [version]
+# Default is R 4.4.3.  Examples:
+#   bash configure-R.sh          # configure R 4.4.3
+#   bash configure-R.sh 4.6.0    # configure R 4.6.0
+R_VERSION="${1:-4.4.3}"
+
 export TMPDIR=/storage/Users/currentUser/R-harmonyos/tmp
 export CONFIG_SHELL=/data/service/hnp/bin/bash
 export SHELL=/data/service/hnp/bin/bash
 umask 022
 mkdir -p "$TMPDIR"
 
-R_SRC=/storage/Users/currentUser/R-harmonyos/src/R-4.4.3
+R_SRC=/storage/Users/currentUser/R-harmonyos/src/R-${R_VERSION}
 BUILD_DIR=/storage/Users/currentUser/R-harmonyos/build
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
@@ -83,8 +89,8 @@ USE_LD="-fuse-ld=${LLD_WRAPPER}"
 export TZ=CST-8
 
 # Apply HarmonyOS patches to R source tree
-echo "Applying HarmonyOS patches to ${R_SRC}..."
-bash "${R_SRC}/../apply-patches.sh" 2>&1 || {
+echo "Applying HarmonyOS patches to ${R_SRC} (R-${R_VERSION})..."
+bash "${R_SRC}/../apply-patches.sh" "${R_VERSION}" 2>&1 || {
     echo "Warning: patch application failed. Continuing anyway."
     echo "Some patches may already be applied."
 }

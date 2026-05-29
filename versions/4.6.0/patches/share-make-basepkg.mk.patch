@@ -1,0 +1,20 @@
+--- R-4.4.3.orig/R-4.4.3/share/make/basepkg.mk	2024-03-27 07:02:03.000000000 +0800
++++ R-4.4.3/share/make/basepkg.mk	2026-05-03 23:19:54.168281719 +0800
+@@ -127,7 +127,7 @@
+ ## only used if byte-compilation is disabled
+ mklazy:
+ 	@$(INSTALL_DATA) all.R $(top_builddir)/library/$(pkg)/R/$(pkg)
+-	@$(ECHO) "tools:::makeLazyLoading(\"$(pkg)\")" | \
++	@$(ECHO) "tools:::makeLazyLoading(\"$(pkg)\", compress = FALSE)" | \
+ 	  R_DEFAULT_PACKAGES=$(DEFPKGS) LC_ALL=C $(R_EXE) > /dev/null
+ 
+ mklazycomp: $(top_builddir)/library/$(pkg)/R/$(pkg).rdb
+@@ -148,7 +148,7 @@
+ 
+ sysdata: $(srcdir)/R/sysdata.rda
+ 	@$(ECHO) "installing 'sysdata.rda'"
+-	@$(ECHO) "tools:::sysdata2LazyLoadDB(\"$(srcdir)/R/sysdata.rda\",\"$(top_builddir)/library/$(pkg)/R\")" | \
++	@$(ECHO) "tools:::sysdata2LazyLoadDB(\"$(srcdir)/R/sysdata.rda\",\"$(top_builddir)/library/$(pkg)/R\",compress=FALSE)" | \
+ 	  R_DEFAULT_PACKAGES=NULL LC_ALL=C $(R_EXE)
+ 
+ 

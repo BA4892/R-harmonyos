@@ -1,0 +1,26 @@
+--- R-4.4.3.orig/R-4.4.3/src/main/gzio.h	2024-03-27 07:02:08.000000000 +0800
++++ R-4.4.3/src/main/gzio.h	2026-05-03 22:21:48.448645782 +0800
+@@ -34,6 +34,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include <errno.h>
++#include "Fileio.h"
+ 
+ #include "zlib.h"
+ 
+@@ -239,8 +240,13 @@
+     s->stream.avail_out = Z_BUFSIZE;
+ 
+     errno = 0;
+-    s->file = fopen(path, fmode);
+-    if (s->file == NULL) return destroy(s), (gzFile) Z_NULL;
++    s->file = R_fopen(path, fmode);
++
++    if (s->file == NULL) {
++        fprintf(stderr, "R_gzopen: fopen FAILED: path=%s mode=%s fmode=%s errno=%d(%s)\n",
++                path, mode, fmode, errno, strerror(errno));
++        return destroy(s), (gzFile) Z_NULL;
++    }
+ 
+     if (s->mode == 'w') {
+         /* Write a very simple .gz header */

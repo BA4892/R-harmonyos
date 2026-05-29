@@ -1,6 +1,13 @@
 # R for HarmonyOS
 
-R 4.4.3 移植到 HarmonyOS (aarch64-linux-ohos) 原生平台。
+支持多个 R 版本在 HarmonyOS (aarch64-linux-ohos) 平台的原生移植。
+
+当前支持的 R 版本：
+
+| 版本 | 状态 | 补丁 |
+|------|------|------|
+| 4.4.3 | ✓ 已测试验证 | `versions/4.4.3/patches/` (14 个) |
+| 4.6.0 | ✓ 补丁已适配 | `versions/4.6.0/patches/` (14 个) |
 
 ## 快速开始
 
@@ -12,10 +19,12 @@ cd R-harmonyos
 # 第 2 步：安装依赖库（brew 安装所有 R 需要的库）
 bash build-deps.sh
 
-# 第 3 步：下载 R 4.4.3 源码
+# 第 3 步：下载 R 4.4.3 源码（也可下载 4.6.0）
 curl -L https://cran.r-project.org/src/base/R-4/R-4.4.3.tar.gz | tar xz -C src/
 
-# 第 4 步：配置（自动对 R 源码打 HarmonyOS 补丁 + 交叉编译配置）
+# 第 4 步：配置（自动打补丁 + 交叉编译配置）。默认 4.4.3，可指定版本:
+#   bash configure-R.sh          # 使用 R 4.4.3
+#   bash configure-R.sh 4.6.0    # 使用 R 4.6.0
 bash configure-R.sh
 
 # 第 5 步：编译
@@ -51,16 +60,26 @@ bash post-install-R.sh
 
 ```
 ├── build/                    # 构建输出（编译结果）
-├── src/R-4.4.3/              # R 4.4.3 源码（需从 CRAN 下载，运行脚本后被打补丁）
-├── patches/                  # HarmonyOS 适配补丁
-│   ├── *.patch               #   14 个源码修改补丁
-│   └── new-files/            #   新增文件（ohos_stubs.c + Makefile.in）
+├── src/                      # R 源码目录（从 CRAN 下载，不在 git 中）
+│   ├── R-4.4.3/              #   R 4.4.3 源码
+│   └── R-4.6.0/              #   R 4.6.0 源码
+├── versions/                 # 各 R 版本的补丁和配置
+│   ├── 4.4.3/
+│   │   ├── patches/          #   14 个 HarmonyOS 补丁
+│   │   │   ├── *.patch
+│   │   │   └── new-files/    #   新增文件（ohos_stubs.c + Makefile.in）
+│   │   └── apply-patches.sh  #   4.4.3 打补丁脚本
+│   └── 4.6.0/
+│       ├── patches/          #   14 个 HarmonyOS 补丁（适配 4.6.0）
+│       │   ├── *.patch
+│       │   └── new-files/
+│       └── apply-patches.sh  #   4.6.0 打补丁脚本
 ├── doc/
-│   └── BUILD-HarmonyOS.md    # 完整构建指南（从这里开始看）
-├── apply-patches.sh          # 打补丁脚本（configure-R.sh 自动调用）
-├── build-deps.sh             # 依赖库安装脚本（第 2 步运行）
-├── configure-R.sh            # 配置脚本（第 4 步运行，自动打补丁 + 交叉编译配置）
-├── post-install-R.sh         # 安装后处理脚本（第 7 步运行）
+│   └── BUILD-HarmonyOS.md    # 完整构建指南
+├── apply-patches.sh          # 打补丁入口：bash apply-patches.sh [版本]
+├── build-deps.sh             # 依赖库安装脚本
+├── configure-R.sh            # 配置入口：bash configure-R.sh [版本]
+├── post-install-R.sh         # 安装后处理：bash post-install-R.sh [版本]
 └── README.md                 # 本文件
 ```
 
@@ -71,8 +90,11 @@ bash post-install-R.sh
 | 脚本 | 何时运行 | 作用 |
 |------|----------|------|
 | `build-deps.sh` | 克隆项目后，第 1 步 | 通过 harmonybrew 安装 bzip2, curl, pcre2, cairo, openblas 等依赖库 |
-| `apply-patches.sh` | 解压 R 源码后，可由 configure-R.sh 自动调用 | 对 src/R-4.4.3/ 应用 14 个 HarmonyOS 补丁 + 安装新增文件 |
-| `configure-R.sh` | 打补丁后（自动调用 apply-patches.sh） | 配置交叉编译参数并运行 R 的 configure |
+| `apply-patches.sh [版本]` | 解压 R 源码后，可由 configure-R.sh 自动调用 | 对 `src/R-版本/` 应用对应版本的 HarmonyOS 补丁。`bash apply-patches.sh 4.6.0` |
+| `configure-R.sh [版本]` | 打补丁后（自动调用 apply-patches.sh） | 配置交叉编译参数并运行 R 的 configure。默认 4.4.3，`bash configure-R.sh 4.6.0` |
+| `post-install-R.sh [版本]` | `make install` 之后 | 生成 methods 懒加载库、NEWS.rds、验证安装完整性 |
+
+所有脚本接受可选的版本参数。不指定则默认使用 R 4.4.3。
 
 ---
 

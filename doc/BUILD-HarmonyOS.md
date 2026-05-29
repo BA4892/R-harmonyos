@@ -1,8 +1,15 @@
-# R 4.4.3 for HarmonyOS — 交叉编译指南
+# R for HarmonyOS — 交叉编译指南
 
 ## 概述
 
-将 R 4.4.3 交叉编译到 HarmonyOS (aarch64-linux-ohos) 平台。
+将 R 多个版本交叉编译到 HarmonyOS (aarch64-linux-ohos) 平台。
+
+当前支持的 R 版本：
+
+| 版本 | 补丁位置 | 补丁数 |
+|------|----------|--------|
+| 4.4.3 | `versions/4.4.3/patches/` | 14 |
+| 4.6.0 | `versions/4.6.0/patches/` | 14（适配 4.6.0 变更） |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos)
@@ -15,13 +22,16 @@
 
 ### 脚本总览
 
-| 脚本 | 位置 | 何时运行 | 作用 |
-|------|------|----------|------|
-| `build-deps.sh` | 项目根目录 | **第 2 步**（可选） | 自动安装 brew 依赖库 |
-| `apply-patches.sh` | 项目根目录 | **第 4 步**，或在第 6 步由 configure-R.sh 自动调用 | 对 R 源码打 HarmonyOS 补丁 |
-| `configure-R.sh` | 项目根目录 | **第 6 步** | 配置 R 构建（自动调 apply-patches.sh） |
+所有脚本接受可选的版本参数，不指定则默认 R 4.4.3：
 
-所有脚本必须**按顺序执行**，不可跳过或调换次序。
+| 脚本 | 何时运行 | 作用 |
+|------|----------|------|
+| `build-deps.sh` | **第 2 步** | 自动安装 brew 依赖库 |
+| `apply-patches.sh [版本]` | **第 4 步**，或由 configure-R.sh 自动调用 | 对 `src/R-版本/` 打 HarmonyOS 补丁。`bash apply-patches.sh 4.6.0` |
+| `configure-R.sh [版本]` | **第 5 步** | 配置交叉编译（自动调用 apply-patches.sh）。`bash configure-R.sh 4.6.0` |
+| `post-install-R.sh [版本]` | **第 8 步** | 生成 methods 懒加载库、NEWS.rds、验证安装。`bash post-install-R.sh 4.6.0` |
+
+所有步骤必须**按顺序执行**，不可跳过或调换次序。
 
 ---
 
@@ -48,21 +58,21 @@
 ## 构建步骤
 
 ```
-Prerequisites (Step 1)          — 工具链准备
+Prerequisites (Step 1)              — 工具链准备
        │
-  Step 2: build-deps.sh         — 安装依赖库（可选，也可手动 brew install）
+  Step 2: build-deps.sh             — 安装依赖库
        │
-  Step 3: tar xzf R-4.4.3...   — 解压 R 源码
+  Step 3: tar xzf R-X.Y.Z.tar.gz   — 解压所需版本的 R 源码
        │
-  Step 4: apply-patches.sh     — 打补丁（可跳过，Step 6 自动执行）
+  Step 4: apply-patches.sh [版本]   — 打补丁（可跳过，Step 5 自动执行）
        │
-  Step 5: configure-R.sh       — 配置（自动调用 apply-patches.sh）
+  Step 5: configure-R.sh [版本]     — 配置（自动调用 apply-patches.sh）
        │
-  Step 6: cd build && make...  — 编译
+  Step 6: cd build && make...       — 编译
        │
-  Step 7: make install         — 安装
+  Step 7: make install              — 安装
        │
-  Step 8: Post-install         — 生成 methods 懒加载库 + NEWS.rds
+  Step 8: post-install-R.sh [版本]  — 安装后处理
 ```
 
 ---
@@ -135,16 +145,22 @@ brew install bzip2 xz pcre2 curl openssl libpng freetype cairo \
 
 ---
 
-### 第 3 步：下载并解压 R 4.4.3 源码
+### 第 3 步：下载并解压 R 源码
+
+选择你想要的 R 版本。当前支持 4.4.3 和 4.6.0：
 
 ```bash
+# 下载 R 4.4.3
 curl -L https://cran.r-project.org/src/base/R-4/R-4.4.3.tar.gz | tar xz -C src/
+
+# 或者下载 R 4.6.0
+curl -L https://cran.r-project.org/src/base/R-4/R-4.6.0.tar.gz | tar xz -C src/
 ```
 
 解压后目录结构：
 
 ```
-src/R-4.4.3/        ← R 原始源码（由 apply-patches.sh 修改）
+src/R-X.Y.Z/        ← R 原始源码（由后续脚本打补丁并编译）
 ```
 
 ---
@@ -152,32 +168,40 @@ src/R-4.4.3/        ← R 原始源码（由 apply-patches.sh 修改）
 ### 第 4 步：对 R 源码打 HarmonyOS 补丁
 
 ```bash
+# 默认对 R 4.4.3 打补丁
 bash apply-patches.sh
+
+# 也可指定版本，例如 R 4.6.0
+bash apply-patches.sh 4.6.0
 ```
 
-此脚本对 `src/R-4.4.3/` 中的原始源码执行以下操作：
+此脚本从 `versions/<版本>/patches/` 读取补丁，对 `src/R-<版本>/` 中的原始源码执行以下操作：
 
-- 应用 `patches/` 目录下的 **14 个补丁文件**（修改现有 R 源码）
-- 复制 `patches/new-files/` 中的 **2 个新增文件**（ohos_stubs.c + Makefile.in）到 `src/extra/ohos_stubs/`
+- 应用 **14 个补丁文件**（修改现有 R 源码）
+- 复制 **2 个新增文件**（ohos_stubs.c + Makefile.in）到 `src/extra/ohos_stubs/`
+
+所有版本共享同一套补丁逻辑，第 4.6.0 版有 2 个补丁因上游代码变更做了适配（serialize.R 增加了 zstd 支持，Rd.R 上下文不同）。
 
 补丁覆盖范围：
 
-| 补丁文件 | 修改内容 |
-|----------|----------|
-| `src-library-base-baseloader.R.patch` | readRDS 参数名 `file` → `filepath`，避免遮蔽 base::file() |
-| `src-main-gzio.h.patch` | fopen → R_fopen，补上 Fileio.h |
-| `src-library-base-R-serialize.R.patch` | gzfile() → file()（绕过 seccomp zlib 过滤） |
-| `src-library-base-R-load.R.patch` | gzfile() → file() |
-| `src-library-base-R-dcf.R.patch` | gzfile() → file() |
-| `src-library-base-R-lazyload.R.patch` | 懒加载中 gzfile() → file() |
-| `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 限制为仅 `${R_HOME}/lib` |
-| `src-library-methods-R-zzz.R.patch` | nspackloader 懒加载支持 |
-| `src-library-tools-R-admin.R.patch` | vignette 安装时 memDecompress fallback |
-| `src-library-tools-R-Rd.R.patch` | partial.rdb 的 memDecompress fallback |
-| `src-main-Makefile.in.patch` | install-bin 清理非 R 文件（R.bfd, test-exec, test-sh） |
-| `src-extra-Makefile.in.patch` | ohos_stubs 构建集成 |
-| `share-make-lazycomp.mk.patch` | 懒加载数据库 compress=FALSE |
-| `share-make-basepkg.mk.patch` | base 包安装 compress=FALSE |
+| 补丁文件 | 修改内容 | 4.4.3 | 4.6.0 |
+|----------|----------|-------|-------|
+| `src-library-base-baseloader.R.patch` | readRDS 参数名 `file` → `filepath`，避免遮蔽 base::file() | ✓ | ✓ |
+| `src-main-gzio.h.patch` | fopen → R_fopen，补上 Fileio.h | ✓ | ✓ |
+| `src-library-base-R-serialize.R.patch` | gzfile() → file()（绕过 seccomp zlib 过滤） | ✓ | ✓ * |
+| `src-library-base-R-load.R.patch` | gzfile() → file() | ✓ | ✓ |
+| `src-library-base-R-dcf.R.patch` | gzfile() → file() | ✓ | ✓ |
+| `src-library-base-R-lazyload.R.patch` | 懒加载中 gzfile() → file() | ✓ | ✓ |
+| `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 限制为仅 `${R_HOME}/lib` | ✓ | ✓ |
+| `src-library-methods-R-zzz.R.patch` | nspackloader 懒加载支持 | ✓ | ✓ |
+| `src-library-tools-R-admin.R.patch` | vignette 安装时 memDecompress fallback | ✓ | ✓ |
+| `src-library-tools-R-Rd.R.patch` | partial.rdb 的 memDecompress fallback | ✓ | ✓ * |
+| `src-main-Makefile.in.patch` | install-bin 清理非 R 文件（R.bfd, test-exec, test-sh） | ✓ | ✓ |
+| `src-extra-Makefile.in.patch` | ohos_stubs 构建集成 | ✓ | ✓ |
+| `share-make-lazycomp.mk.patch` | 懒加载数据库 compress=FALSE | ✓ | ✓ |
+| `share-make-basepkg.mk.patch` | base 包安装 compress=FALSE | ✓ | ✓ |
+
+> * 4.6.0 版因上游代码变更做了适配：serialize.R 新增了 `zstd` 压缩支持（多一行 context），Rd.R 的 `readRDS(built_file)` 上下文不同。`versions/4.6.0/patches/` 中的对应补丁已做调整。
 
 **注意**：此步骤也可跳过——第 5 步的 `configure-R.sh` 会自动调用 `apply-patches.sh`。单独运行适用于提前查看补丁效果或在修改补丁后单独测试。
 
@@ -186,16 +210,20 @@ bash apply-patches.sh
 ### 第 5 步：配置 R 构建
 
 ```bash
+# 默认配置 R 4.4.3
 bash configure-R.sh
+
+# 也可指定版本，例如 R 4.6.0
+bash configure-R.sh 4.6.0
 ```
 
 此脚本完成以下工作：
 
-1. **自动调用 `apply-patches.sh`**（如果尚未打补丁）
+1. **自动调用 `apply-patches.sh <版本>`**（如果尚未打补丁）
 2. **清理** `build/` 目录中的 `config.cache` 和 `config.status`
 3. **设置环境变量**（PKG_CONFIG_PATH 指向 brew 和 R-deps，LD_LIBRARY_PATH 指向 OHOS LLVM lib 和 gfortran）
 4. **预配置缓存变量**（约 35 个 `r_cv_*` / `ac_cv_*` 变量，跳过因 seccomp 限制无法运行的运行时测试）
-5. **运行 `src/R-4.4.3/configure`** 并传递所有 HarmonyOS 交叉编译参数
+5. **运行 `src/R-<版本>/configure`** 并传递所有 HarmonyOS 交叉编译参数
 6. **修补 `config.status`**（修复 HarmonyOS toybox 的兼容性问题：umask 077 + mktemp 失败，ksh `print -r --` bash 不支持）
 7. **重新运行 `config.status`** 生成最终的 Makefile
 

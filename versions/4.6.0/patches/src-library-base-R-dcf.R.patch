@@ -1,0 +1,11 @@
+--- R-4.4.3.orig/R-4.4.3/src/library/base/R/dcf.R	2023-03-24 07:02:03.000000000 +0800
++++ R-4.4.3/src/library/base/R/dcf.R	2026-05-03 22:16:54.507306251 +0800
+@@ -20,7 +20,7 @@
+ function(file, fields = NULL, all = FALSE, keep.white = NULL)
+ {
+     if(is.character(file)){
+-        file <- gzfile(file)
++        file <- file(file, "r")
+         on.exit(close(file))
+     }
+     if(!inherits(file, "connection"))

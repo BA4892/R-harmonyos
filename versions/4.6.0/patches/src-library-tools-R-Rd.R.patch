@@ -1,0 +1,19 @@
+--- R-4.6.0.orig/R-4.6.0/src/library/tools/R/Rd.R.orig	2026-05-29 15:32:56.761058438 +0800
++++ R-4.6.0/src/library/tools/R/Rd.R	2026-05-29 15:32:56.781059844 +0800
+@@ -369,7 +369,15 @@
+     files <- as.list(files)
+     
+     if(!is.null(built_file) && file_test("-f", built_file)) {
+- 	built <- readRDS(built_file)
++ 	built <- tryCatch(readRDS(built_file), error = function(e) {
++	    tryCatch({
++	        rawdata <- readBin(built_file, raw(), file.info(built_file)$size)
++	        decompressed <- memDecompress(rawdata, "gzip")
++	        unserialize(decompressed)
++	    }, error = function(e2) {
++	        stop("cannot read built_file: ", conditionMessage(e2))
++	    })
++	})
+  	names_built <- names(built)
+         ## Hmm ... why are we doing this?
+  	if ("install" %in% stages) {

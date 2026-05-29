@@ -1,0 +1,51 @@
+--- R-4.4.3.orig/R-4.4.3/src/extra/Makefile.in	2018-09-25 16:46:40.000000000 +0800
++++ R-4.4.3/src/extra/Makefile.in	2026-05-29 10:45:32.293064688 +0800
+@@ -21,7 +21,8 @@
+ LIBINTL =@BUILD_LIBINTL_TRUE@ make.intl
+ LIBTRE =@BUILD_TRE_TRUE@ make.tre
+ LIBTZONE =@BUILD_TZONE_TRUE@make.tzone
+-EXTRAS = $(RBLAS) $(LIBXDR) $(LIBINTL) $(LIBTRE) $(LIBTZONE)
++LIBOHOS_STUBS = make.ohos_stubs
++EXTRAS = $(RBLAS) $(LIBXDR) $(LIBINTL) $(LIBTRE) $(LIBTZONE) $(LIBOHOS_STUBS)
+ 
+ all: Makefile R
+ 
+@@ -46,9 +47,27 @@
+ make.tzone: Makefile
+ 	@(cd tzone; $(MAKE))
+ 
++## OHOS libc stubs — shared library preloaded to provide missing
++## POSIX/glibc symbols (pthread_setcanceltype, pthread_cancel, etc.)
++## that the stripped musl libc in OHOS SDK does not include.
++OHOS_STUBS_SRC = $(srcdir)/ohos_stubs/ohos_stubs.c
++OHOS_STUBS_OBJ = ohos_stubs.o
++OHOS_STUBS_LIB = libohos_stubs@R_DYLIB_EXT@
++OHOS_STUBS_CFLAGS = $(R_XTRA_CFLAGS) $(CPICFLAGS) $(SHLIB_CFLAGS) $(CFLAGS) @C_VISIBILITY@
++OHOS_STUBS_CPPFLAGS = $(R_XTRA_CPPFLAGS) $(CPPFLAGS) $(DEFS)
++
++make.ohos_stubs: Makefile
++	@$(MAKE) $(OHOS_STUBS_LIB)
++
++$(OHOS_STUBS_LIB): $(OHOS_STUBS_OBJ)
++	$(DYLIB_LINK) -o $@ $(OHOS_STUBS_OBJ)
++
++$(OHOS_STUBS_OBJ): $(OHOS_STUBS_SRC)
++	$(CC) $(OHOS_STUBS_CFLAGS) $(OHOS_STUBS_CPPFLAGS) -c $(OHOS_STUBS_SRC) -o $@
+ 
+ mostlyclean: clean
+ clean:
++	@-rm -f *.o *.lo *.so *.dylib $(OHOS_STUBS_LIB)
+ 	@for d in $(SUBDIRS); do \
+ 	  (cd $${d} && $(MAKE) $@) || exit 1; \
+ 	done
+@@ -60,6 +79,10 @@
+ maintainer-clean: distclean
+ 
+ install install-strip:
++	@if test -f $(OHOS_STUBS_LIB); then \
++	  $(MKINSTALLDIRS) "$(DESTDIR)$(Rexeclibdir)"; \
++	  $(SHELL) $(top_srcdir)/tools/copy-if-change $(OHOS_STUBS_LIB) "$(DESTDIR)$(Rexeclibdir)/$(OHOS_STUBS_LIB)"; \
++	fi
+ 	@for d in $(SUBDIRS); do \
+ 	  (cd $${d} && $(MAKE) $@) || exit 1; \
+ 	done
