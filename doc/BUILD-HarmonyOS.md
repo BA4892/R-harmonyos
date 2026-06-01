@@ -9,7 +9,7 @@
 | 版本 | 补丁位置 | 补丁数 |
 |------|----------|--------|
 | 4.4.3 | `versions/4.4.3/patches/` | 14 |
-| 4.6.0 | `versions/4.6.0/patches/` | 17（新增 seccomp zlib 变通方案 + gzfile pipe 替代） |
+| 4.6.0 | `versions/4.6.0/patches/` | 18（新增 seccomp zlib 变通方案 + gzfile pipe 替代 + Rscript execv 变通） |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos)
@@ -210,6 +210,7 @@ bash apply-patches.sh 4.6.0
 | `src-library-tools-R-makeLazyLoad.R.patch` | sysdata2LazyLoadDB gzip magic 检测 + 外部 gzip -dc pipe；mapfile saveRDS 取消压缩 | — | ✓ |
 | `src-library-tools-R-build.R.patch` | build_partial_Rd_db_path 的 saveRDS 取消压缩 | — | ✓ |
 | `src-library-utils-R-tar.R.patch` | untar/tar 中 gzfile() → 外部 gzip pipe（绕过 seccomp，修复 install.packages） | — | ✓ |
+| `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | — | ✓ |
 
 > 4.6.0 版因上游代码变更和新增的 seccomp zlib 封锁做了以下调整：serialize.R 新增了 `zstd` 压缩支持（多一行 context），Rd.R 的 `readRDS(built_file)` 上下文不同，methods/R/zzz.R 的补丁改为内联 python3 脚本处理（非 .patch 文件），新增了 3 个补丁应对 R_compress1 / R_decompress1 被封后的系统数据压缩问题。
 
@@ -323,7 +324,7 @@ R 安装后通过包装脚本启动：
   'install.packages("jsonlite", repos="https://cloud.r-project.org")'
 ```
 
-**注意**：`Rscript` 不可用——seccomp 阻止 `execv()`。改用 `R --vanilla -e` 执行脚本。
+**注意**：早期版本中 `Rscript` 因 seccomp 阻止 `execv()` 不可用。自补丁 #18（`src/unix/Rscript.c`）起，Rscript 通过 `dlopen("libR.so")` 直接调用 `Rf_initialize_R` + `Rf_mainloop` 变通实现，现已正常工作。
 
 ---
 
