@@ -1,0 +1,28 @@
+--- R-4.6.0.orig/src/library/utils/R/tar.R	2024-12-04 22:08:25.000000000 +0800
++++ R-4.6.0/src/library/utils/R/tar.R	2026-06-01 15:29:43.503831250 +0800
+@@ -204,7 +204,15 @@
+     ## a header record followed by file contents (zero-padded).
+     ## See https://en.wikipedia.org/wiki/Tar_%28file_format%29
+     if(is.character(tarfile) && length(tarfile) == 1L) {
+-        con <- gzfile(path.expand(tarfile), "rb") # reads compressed formats
++        ## HarmonyOS: gzfile() is blocked by seccomp. Use external gzip pipe.
++        tf <- path.expand(tarfile)
++        con <- tryCatch({
++            magic <- readBin(tf, "raw", 2L)
++            if(length(magic) >= 2L && magic[1L] == 0x1f && magic[2L] == 0x8b)
++                pipe(paste("gzip -dc", shQuote(tf)), "rb")
++            else
++                file(tf, "rb")
++        }, error = function(e) gzfile(tf, "rb"))
+         on.exit(close(con))
+     } else if(inherits(tarfile, "connection")) {
+         con <- tarfile
+@@ -477,7 +485,7 @@
+         )
+         con <- switch(match.arg(compression),
+                       "none" =  file(tarfile, "wb"),
+-                      "gzip" =  gzfile(tarfile, "wb", compression = compression_level),
++                      "gzip" =  pipe(paste("gzip -c >", shQuote(path.expand(tarfile))), "wb"),
+                       "bzip2" = bzfile(tarfile, "wb", compression = compression_level),
+                       "xz" = xzfile(tarfile, "wb", compression = compression_level),
+                       "zstd" = zstdfile(tarfile, "wb", compression = compression_level))
