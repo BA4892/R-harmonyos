@@ -8,7 +8,7 @@
 
 | 版本 | 补丁位置 | 补丁数 |
 |------|----------|--------|
-| 4.4.3 | `versions/4.4.3/patches/` | 14 |
+| 4.4.3 | `versions/4.4.3/patches/` | 15（新增 Rscript execv 变通） |
 | 4.6.0 | `versions/4.6.0/patches/` | 18（新增 seccomp zlib 变通方案 + gzfile pipe 替代 + Rscript execv 变通） |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
@@ -179,7 +179,7 @@ bash apply-patches.sh 4.6.0
 
 此脚本从 `versions/<版本>/patches/` 读取补丁，对 `src/R-<版本>/` 中的原始源码执行以下操作：
 
-- 应用 **16 个补丁文件**（修改现有 R 源码，4.6.0 比 4.4.3 多 2 个 seccomp zlib 变通补丁）
+- 应用 **17 个补丁文件**（修改现有 R 源码，4.6.0 比 4.4.3 多 3 个 seccomp zlib 变通补丁 + tar.R + Rscript 变通）
 - 复制 **2 个新增文件**（ohos_stubs.c + Makefile.in）到 `src/extra/ohos_stubs/`
 
 4.6.0 版补丁基于 4.4.3 适配，因上游代码变更做了以下调整：
@@ -210,7 +210,7 @@ bash apply-patches.sh 4.6.0
 | `src-library-tools-R-makeLazyLoad.R.patch` | sysdata2LazyLoadDB gzip magic 检测 + 外部 gzip -dc pipe；mapfile saveRDS 取消压缩 | — | ✓ |
 | `src-library-tools-R-build.R.patch` | build_partial_Rd_db_path 的 saveRDS 取消压缩 | — | ✓ |
 | `src-library-utils-R-tar.R.patch` | untar/tar 中 gzfile() → 外部 gzip pipe（绕过 seccomp，修复 install.packages） | — | ✓ |
-| `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | — | ✓ |
+| `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | ✓ | ✓ |
 
 > 4.6.0 版因上游代码变更和新增的 seccomp zlib 封锁做了以下调整：serialize.R 新增了 `zstd` 压缩支持（多一行 context），Rd.R 的 `readRDS(built_file)` 上下文不同，methods/R/zzz.R 的补丁改为内联 python3 脚本处理（非 .patch 文件），新增了 3 个补丁应对 R_compress1 / R_decompress1 被封后的系统数据压缩问题。
 
