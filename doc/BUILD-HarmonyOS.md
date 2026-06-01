@@ -16,7 +16,7 @@
 - **链接器**: lld（hmdfs 要求 `.codesign` 段，仅 lld 生成）
 - **BLAS/LAPACK**: [OpenBLAS 0.3.29](https://github.com/sxgou/openblas-harmonyos)（harmonybrew，1000x1000 MM ~0.48s / ~4.2 GFLOPs）
 - **包管理器**: [harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony)
-- **Cairo**: 支持（brew cairo 1.18.4 + fontconfig 2.17.1，PNG/SVG/PDF 后端可用）
+- **Cairo + Pango**: 支持（brew cairo 1.18.4 + pango 1.57.1 + fontconfig 2.17.1，PNG/SVG/PDF 后端可用，Pango 文本布局增强）
 - **readline**: 启用（brew libreadline + ncurses，Tab 补全和方向键可用）
 - **Java**: BiSheng JDK 17
 
@@ -49,9 +49,9 @@
 
 ### 依赖库
 
-由 harmonybrew 提供：pcre2, curl, bzip2, xz, openssl@3, libffi, openblas, readline, ncurses, libpng, freetype, cairo, libxml2, expat, pixman, fontconfig, harfbuzz, fribidi, gmp
+由 harmonybrew 提供：pcre2, curl, bzip2, xz, openssl@3, libffi, openblas, readline, ncurses, libpng, freetype, cairo, libxml2, expat, pixman, fontconfig, harfbuzz, fribidi, gmp, pango, cmake, ninja, libtiff, pkgconf, autoconf, automake, bison, flex, sccache, libgit2, libsodium, proj, webp, giflib, mpfr
 
-手动编译（`~/.local/R-deps`）：fftw3, zeromq, ANN, mpfr
+手动编译（`~/.local/R-deps`）：fftw3, zeromq, ANN, glpk
 
 ---
 
@@ -130,7 +130,7 @@ bash build-deps.sh
 ```
 
 此脚本自动执行：
-- `brew install bzip2 xz pcre2 curl libpng freetype cairo ...`（所有 brew 可用依赖）
+- `brew install bzip2 xz pcre2 curl libpng freetype cairo ...`（所有 brew 可用依赖，含 pango/cmake/ninja 等构建工具）
 - 创建 `~/.local/R-deps/` 目录（用于尚未进入 brew 的库）
 - 验证关键库文件是否存在
 
@@ -138,10 +138,12 @@ bash build-deps.sh
 
 ```bash
 brew install bzip2 xz pcre2 curl openssl libpng freetype cairo \
-  geos gmp libxml2 pixman libjpeg unixodbc expat fontconfig
+  geos gmp libxml2 pixman libjpeg unixodbc expat fontconfig \
+  pango cmake ninja libtiff pkgconf autoconf automake bison flex \
+  sccache libgit2 libsodium proj webp giflib mpfr
 ```
 
-非 brew 库（fftw3, zeromq, ANN, mpfr）需要手动交叉编译，安装到 `~/.local/R-deps/`。
+非 brew 库（fftw3, zeromq, ANN, glpk）需要手动交叉编译，安装到 `~/.local/R-deps/`。
 
 ---
 

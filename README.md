@@ -89,7 +89,7 @@ bash post-install-R.sh
 
 | 脚本 | 何时运行 | 作用 |
 |------|----------|------|
-| `build-deps.sh` | 克隆项目后，第 1 步 | 通过 harmonybrew 安装 bzip2, curl, pcre2, cairo, openblas 等依赖库 |
+| `build-deps.sh` | 克隆项目后，第 1 步 | 通过 harmonybrew 安装 bzip2, curl, pcre2, cairo, pango, cmake, ninja 等依赖库和构建工具 |
 | `apply-patches.sh [版本]` | 解压 R 源码后，可由 configure-R.sh 自动调用 | 对 `src/R-版本/` 应用对应版本的 HarmonyOS 补丁。`bash apply-patches.sh 4.6.0` |
 | `configure-R.sh [版本]` | 打补丁后（自动调用 apply-patches.sh） | 配置交叉编译参数并运行 R 的 configure。默认 4.4.3，`bash configure-R.sh 4.6.0` |
 | `post-install-R.sh [版本]` | `make install` 之后 | 生成 methods 懒加载库、NEWS.rds、验证安装完整性 |
@@ -106,8 +106,8 @@ bash post-install-R.sh
 | 工具链 | OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos) |
 | 链接器 | lld（hmdfs 要求 `.codesign` 段） |
 | BLAS/LAPACK | [OpenBLAS 0.3.29](https://github.com/sxgou/openblas-harmonyos)（1000x1000 MM ~0.48s） |
-| 包管理器 | [harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony) |
-| Cairo | 支持（PNG/SVG/PDF 后端） |
+| 包管理器 | [harmonybrew](https://gitcode.com/Harmonybrew/homebrew-harmony)（84 个 formula） |
+| Cairo + Pango | 支持（brew cairo + pango，PNG/SVG/PDF 后端，Pango 文本布局增强） |
 | readline | 启用（Tab 补全和方向键） |
 | Java | BiSheng JDK 17 |
 

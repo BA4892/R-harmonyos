@@ -8,7 +8,9 @@
 # Preferred: install via harmonybrew
 #   brew install bzip2 xz pcre2 openssl curl libpng freetype \
 #              cairo geos gmp libxml2 pixman libjpeg unixodbc \
-#              expat fontconfig
+#              expat fontconfig pango cmake ninja libtiff \
+#              pkgconf autoconf automake bison flex sccache \
+#              libgit2 libsodium proj webp giflib mpfr
 #
 # Fallback (not yet in brew — manual build):
 #   glpk, fftw, ANN, zeromq
@@ -29,7 +31,9 @@ echo ""
 # The --formula flag ensures we don't accidentally install a cask
 $BREW install --formula 2>/dev/null \
   bzip2 xz pcre2 curl libpng freetype cairo geos gmp \
-  libxml2 pixman libjpeg unixodbc expat fontconfig
+  libxml2 pixman libjpeg unixodbc expat fontconfig \
+  pango cmake ninja libtiff pkgconf autoconf automake \
+  bison flex sccache libgit2 libsodium proj webp giflib mpfr
 
 # openssl@3 is likely already installed (ohos-sdk dep), but ensure it
 $BREW install --formula openssl@3 2>/dev/null || true
@@ -52,8 +56,9 @@ mkdir -p "$PREFIX/lib" "$PREFIX/include"
 #   cd ohos-libs/scripts && bash build-all-simple.sh
 echo ""
 echo "=== Manual packages still at ~/.local/R-deps/ ==="
-echo "  GLPK, FFTW, ANN, zeromq — not yet in brew."
-echo "  Build via ohos-ligs if needed."
+echo "  GLPK, FFTW, ANN, zeromq — still not yet in brew."
+echo "  mpfr was previously manual, now available via brew."
+echo "  Build via ohos-libs if needed."
 echo ""
 
 # Verify key headers/libs are findable
