@@ -1,0 +1,50 @@
+--- R-4.6.0.orig/src/library/tools/R/install.R	2024-12-04 22:08:25.000000000 +0800
++++ R-4.6.0/src/library/tools/R/install.R	2026-06-01 11:01:13.942094843 +0800
+@@ -1599,17 +1599,17 @@
+ 	    if (inherits(res, "try-error"))
+ 		pkgerrmsg("unable to collate and parse R files", pkg_name)
+
+-	    if (file.exists(f <- file.path("R", "sysdata.rda"))) {
+-                comp <- TRUE
+-                ## (We set .libPaths)
+-                if(!is.na(lazycompress <- desc["SysDataCompression"])) {
+-                    comp <- switch(lazycompress,
+-                                   "none" = FALSE,
+-                                   "gzip" = TRUE,
+-                                   "bzip2" = 2L,
+-                                   "xz" = 3L,
+-                                   TRUE)  # default to gzip
+-                } else if(file.size(f) > 1e6) comp <- 3L # "xz"
++		    if (file.exists(f <- file.path("R", "sysdata.rda"))) {
++	                comp <- FALSE  # HarmonyOS: R_compress1 blocked by seccomp
++	                ## (We set .libPaths)
++	                if(!is.na(lazycompress <- desc["SysDataCompression"])) {
++	                    comp <- switch(lazycompress,
++	                                   "none" = FALSE,
++	                                   "gzip" = FALSE,   # HarmonyOS
++	                                   "bzip2" = FALSE,  # HarmonyOS
++	                                   "xz" = FALSE,     # HarmonyOS
++	                                   FALSE)            # HarmonyOS
++	                } else if(file.size(f) > 1e6) comp <- FALSE  # HarmonyOS
+ 		res <- try(sysdata2LazyLoadDB(f, file.path(instdir, "R"),
+                                               compress = comp))
+ 		if (inherits(res, "try-error"))
+@@ -1836,7 +1836,8 @@
+                                               quote_path(lib), ", ",
+                                 "keep.source = ", keep.source, ", ",
+                         "keep.parse.data = ", keep.parse.data,
+-                                              set.install.dir, ")"))
++                                              set.install.dir,
++                        ", compress = FALSE)"))
+             cmd <- paste(cmd, collapse="\n")
+             out <- R_runR_deps_only(cmd,
+                                     setRlibs(LinkingTo = TRUE, quote = TRUE))
+@@ -2097,7 +2098,7 @@
+     merge <- FALSE
+     dsym <- nzchar(Sys.getenv("PKG_MAKE_DSYM"))
+     get_user_libPaths <- FALSE
+-    data_compress <- TRUE # FALSE (none), TRUE (gzip), 2 (bzip2), 3 (xz)
++    data_compress <- FALSE # HarmonyOS: gzip blocked by seccomp
+     resave_data <- FALSE
+     compact_docs <- FALSE
+     keep.source <- getOption("keep.source.pkgs")

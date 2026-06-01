@@ -1,9 +1,9 @@
---- R-4.4.3.orig/R-4.4.3/src/library/tools/R/admin.R	2024-03-27 07:02:06.000000000 +0800
-+++ R-4.4.3/src/library/tools/R/admin.R	2026-05-29 09:05:04.377060001 +0800
+--- R-4.6.0.orig/src/library/tools/R/admin.R	2024-12-04 22:08:25.000000000 +0800
++++ R-4.6.0/src/library/tools/R/admin.R	2026-06-01 10:46:19.442094531 +0800
 @@ -653,9 +653,21 @@
      hasHtmlIndex <- file_test("-f", file.path(vignetteDir, "index.html"))
      htmlIndex <- file.path(outDir, "doc", "index.html")
- 
+
 -    vignetteIndex <- readRDS(indexname)
 +    vignetteIndex <- tryCatch(readRDS(indexname), error = function(e) {
 +        ## HarmonyOS: gzfile connections cannot read pre-compressed files
@@ -18,9 +18,18 @@
 +            NULL
 +        })
 +    })
- 
+
 -    if(!hasHtmlIndex)
 +    if(!hasHtmlIndex && !is.null(vignetteIndex))
          .writeVignetteHtmlIndex(packageName, htmlIndex, vignetteIndex)
- 
+
      invisible()
+@@ -914,7 +926,7 @@
+         at <- list(first = nchar(file.path(mandir)) + 2L)
+         saveRDS(`attributes<-`(nm, at), pathsFile)
+         names(db) <- sub("\\.[Rr]d$", "", basename(nm))
+-        makeLazyLoadDB(db, file.path(manOutDir, packageName))
++        makeLazyLoadDB(db, file.path(manOutDir, packageName), compress = FALSE)
+     }
+     invisible()
+ }

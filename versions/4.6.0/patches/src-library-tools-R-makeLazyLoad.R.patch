@@ -1,0 +1,39 @@
+--- R-4.6.0.orig/src/library/tools/R/makeLazyLoad.R	2024-12-04 22:08:25.000000000 +0800
++++ R-4.6.0/src/library/tools/R/makeLazyLoad.R	2026-06-01 11:00:52.914097812 +0800
+@@ -43,7 +43,26 @@
+ sysdata2LazyLoadDB <- function(srcFile, destDir, compress = TRUE)
+ {
+     e <- new.env(hash=TRUE)
+-    load(srcFile, e)
++    ## HarmonyOS: gzopen is blocked by seccomp, so load() on a
++    ## gzip-compressed .rda file would fail.  Use external gzip -dc
++    ## via pipe to decompress first.
++    if (is.character(srcFile)) {
++        con <- file(srcFile, "rb")
++        if (isOpen(con)) {
++            magic <- readBin(con, "raw", 2L)
++            close(con)
++        } else magic <- raw(0L)
++        if (length(magic) >= 2L && magic[1L] == 0x1f && magic[2L] == 0x8b) {
++            ## gzip magic: use external decompressor
++            con <- pipe(paste("gzip -dc", shQuote(srcFile)), "rb")
++            on.exit(close(con))
++            load(con, e)
++        } else {
++            load(srcFile, e)
++        }
++    } else {
++        load(srcFile, e)
++    }
+     makeLazyLoadDB(e, file.path(destDir, "sysdata"), compress = compress)
+ }
+
+@@ -324,7 +343,7 @@
+
+     val <- list(variables = vals, references = rvals,
+                 compressed = compress)
+-    saveRDS(val, mapfile)
++    saveRDS(val, mapfile, compress = FALSE)
+ }
+
+ makeLazyLoading <-

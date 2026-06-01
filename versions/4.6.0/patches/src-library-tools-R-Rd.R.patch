@@ -1,17 +1,25 @@
---- R-4.6.0.orig/R-4.6.0/src/library/tools/R/Rd.R.orig	2026-05-29 15:32:56.761058438 +0800
-+++ R-4.6.0/src/library/tools/R/Rd.R	2026-05-29 15:32:56.781059844 +0800
-@@ -369,7 +369,15 @@
+--- R-4.6.0.orig/src/library/tools/R/Rd.R	2024-12-04 22:08:25.000000000 +0800
++++ R-4.6.0/src/library/tools/R/Rd.R	2026-06-01 11:10:25.538095781 +0800
+@@ -369,13 +369,21 @@
      files <- as.list(files)
-     
+
      if(!is.null(built_file) && file_test("-f", built_file)) {
 - 	built <- readRDS(built_file)
-+ 	built <- tryCatch(readRDS(built_file), error = function(e) {
++	built <- tryCatch(readRDS(built_file), error = function(e) {
 +	    tryCatch({
 +	        rawdata <- readBin(built_file, raw(), file.info(built_file)$size)
 +	        decompressed <- memDecompress(rawdata, "gzip")
 +	        unserialize(decompressed)
 +	    }, error = function(e2) {
-+	        stop("cannot read built_file: ", conditionMessage(e2))
++	        ## HarmonyOS: both gzfile and memDecompress(gzip) are blocked
++	        ## by seccomp, so try external gzip -dc via pipe.
++	        tryCatch({
++	            con <- pipe(paste("gzip -dc", shQuote(built_file)), "rb")
++	            on.exit(close(con))
++	            unserialize(con)
++	        }, error = function(e3) {
++	            stop("cannot read built_file: ", conditionMessage(e3))
++	        })
 +	    })
 +	})
   	names_built <- names(built)

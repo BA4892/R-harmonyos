@@ -14,7 +14,8 @@ set -e
 
 VERSION="${1:-4.4.3}"
 
-SCRIPT="versions/$VERSION/apply-patches.sh"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT="$HERE/versions/$VERSION/apply-patches.sh"
 
 if [ ! -f "$SCRIPT" ]; then
     echo "Error: no patches found for R-$VERSION"
@@ -26,5 +27,6 @@ if [ ! -f "$SCRIPT" ]; then
 fi
 
 echo "=== Applying R-$VERSION HarmonyOS patches ==="
+cd "$HERE"
 bash "$SCRIPT"
 echo "=== Done ==="

@@ -7,7 +7,7 @@
 | 版本 | 状态 | 补丁 |
 |------|------|------|
 | 4.4.3 | ✓ 已测试验证 | `versions/4.4.3/patches/` (14 个) |
-| 4.6.0 | ✓ 补丁已适配 | `versions/4.6.0/patches/` (14 个) |
+| 4.6.0 | ✓ 已测试验证 | `versions/4.6.0/patches/` (16 个) |
 
 ## 快速开始
 
@@ -70,7 +70,7 @@ bash post-install-R.sh
 │   │   │   └── new-files/    #   新增文件（ohos_stubs.c + Makefile.in）
 │   │   └── apply-patches.sh  #   4.4.3 打补丁脚本
 │   └── 4.6.0/
-│       ├── patches/          #   14 个 HarmonyOS 补丁（适配 4.6.0）
+│       ├── patches/          #   16 个 HarmonyOS 补丁（含 seccomp zlib 变通方案）
 │       │   ├── *.patch
 │       │   └── new-files/
 │       └── apply-patches.sh  #   4.6.0 打补丁脚本
@@ -133,7 +133,7 @@ bash post-install-R.sh
 
 ## 已知限制
 
-- **gzfile() 不可用**：seccomp 过滤 zlib。包安装需 `compress=FALSE`；预压缩 vignette.rds 通过 `memDecompress()` + `unserialize()` 变通读取
+- **gzfile() / gzopen / R_compress1 / R_decompress1 不可用**：seccomp 过滤 zlib 所有压缩/解压接口。包安装全面使用 `compress=FALSE`；预压缩 .rda 文件通过外部 `gzip -dc` pipe 变通加载；预压缩 vignette.rds / partial.rdb 通过 `memDecompress()` + `unserialize()` 变通读取（memDecompress(gzip) 也受限于 seccomp，回退到外部 gzip pipe）
 - **Rscript 不可用**：seccomp 阻止 `execv()`，`Rscript -e` 返回 Permission denied
 - **无 X11 / Tcl/Tk**：HarmonyOS 无相关支持
 - **ELF 不可 strip**：hmdfs 安全隔离上下文被破坏

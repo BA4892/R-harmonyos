@@ -90,7 +90,7 @@ export TZ=CST-8
 
 # Apply HarmonyOS patches to R source tree
 echo "Applying HarmonyOS patches to ${R_SRC} (R-${R_VERSION})..."
-bash "${R_SRC}/../apply-patches.sh" "${R_VERSION}" 2>&1 || {
+bash "${R_SRC}/../../apply-patches.sh" "${R_VERSION}" 2>&1 || {
     echo "Warning: patch application failed. Continuing anyway."
     echo "Some patches may already be applied."
 }
