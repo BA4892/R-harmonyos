@@ -1,0 +1,12 @@
+--- a/etc/ldpaths.in
++++ b/etc/ldpaths.in
+@@ -19,3 +19,9 @@ export @Rshlibpath_var@
+ 	fi
+ fi
+ export @Rshlibpath_var@
++
++## HarmonyOS: preload libohos_stubs.so to provide symbols missing from
++## OHOS's stripped musl libc (pthread_setcanceltype, pthread_cancel,
++## posix_spawn_file_actions_addchdir_np, __xpg_strerror_r).
++LD_PRELOAD="${R_HOME}/lib${R_ARCH}/libohos_stubs.so${LD_PRELOAD:+:${LD_PRELOAD}}"
++export LD_PRELOAD
