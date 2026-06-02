@@ -7,6 +7,7 @@
 | 版本 | 状态 | 补丁 |
 |------|------|------|
 | 4.4.3 | ✓ 已测试验证 | `versions/4.4.3/patches/` (2 个) |
+| 4.5.2 | ✓ 已测试验证 | `versions/4.5.2/patches/` (4 个) |
 | 4.6.0 | ✓ 已测试验证 | `versions/4.6.0/patches/` (2 个) |
 
 ## 快速开始
@@ -69,6 +70,11 @@ bash post-install-R.sh
 │   │   │   ├── *.patch
 │   │   │   └── new-files/    #   新增文件（ohos_stubs.c + Makefile.in）
 │   │   └── apply-patches.sh  #   4.4.3 打补丁脚本
+│   ├── 4.5.2/
+│   │   ├── patches/          #   4 个 HarmonyOS 补丁
+│   │   │   ├── *.patch
+│   │   │   └── new-files/
+│   │   └── apply-patches.sh  #   4.5.2 打补丁脚本（含 6 个内联 python 修复）
 │   └── 4.6.0/
 │       ├── patches/          #   2 个 HarmonyOS 补丁
 │       │   ├── *.patch

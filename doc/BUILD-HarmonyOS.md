@@ -9,6 +9,7 @@
 | 版本 | 补丁位置 | 补丁数 |
 |------|----------|--------|
 | 4.4.3 | `versions/4.4.3/patches/` | 2 |
+| 4.5.2 | `versions/4.5.2/patches/` | 4 |
 | 4.6.0 | `versions/4.6.0/patches/` | 2 |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
@@ -179,17 +180,35 @@ bash apply-patches.sh 4.6.0
 
 此脚本从 `versions/<版本>/patches/` 读取补丁，对 `src/R-<版本>/` 中的原始源码执行以下操作：
 
-- 应用 **2 个补丁文件**（修改现有 R 源码，各版本内容相同）
+- 应用 **补丁文件**（修改现有 R 源码，各版本数量不同）
+  - 4.4.3 / 4.6.0：2 个公共补丁
+  - 4.5.2：4 个补丁（2 个公共 + 2 个版本特定）
 - 复制 **2 个新增文件**（ohos_stubs.c + Makefile.in）到 `src/extra/ohos_stubs/`
+- 运行 **内联 python 修复**（仅 4.5.2：6 个额外修复解决 R 4.5.2 特有的头文件重组问题）
 
 补丁覆盖范围：
 
-| 补丁文件 | 修改内容 | 4.4.3 | 4.6.0 |
-|----------|----------|-------|-------|
-| `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 加入 brew/lib 以优先使用 zlib-ng-compat | ✓ | ✓ |
-| `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | ✓ | ✓ |
+| 补丁文件 | 修改内容 | 4.4.3 | 4.5.2 | 4.6.0 |
+|----------|----------|-------|-------|-------|
+| `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 加入 brew/lib 以优先使用 zlib-ng-compat | ✓ | ✓ | ✓ |
+| `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | ✓ | ✓ | ✓ |
+| `src-extra-Makefile.in-ohos_stubs.patch` | 将 ohos_stubs 加入 `src/extra/Makefile.in` 的 SUBDIRS，使 libohos_stubs.so 作为标准 make 流程的一部分自动构建 | ✗ | ✓ | ✗ |
+| `etc-ldpaths.in-LD_PRELOAD.patch` | 在 ldpaths.in 模板中嵌入 LD_PRELOAD 配置，使 libohos_stubs.so 在每次 R 启动时自动预加载 | ✗ | ✓ | ✗ |
 
-> **注意**：原有的 9–13 个 zlib 压缩变通补丁、2 个无实际效果的补丁（baseloader.R、gzio.h），以及 2 个可外部化的构建集成补丁（main-Makefile.in、extra-Makefile.in）已被删除。这些补丁在 R 因加载 OHOS SDK 的 libz.so 而触发 seccomp 封锁时用于绕过压缩接口限制。自 `zlib-ng-compat`（brew）替代 SDK libz 后，所有压缩/解压接口正常工作，不再需要这些变通。libohos_stubs.so 的编译也已从 R 构建系统移至 `post-install-R.sh`（安装后处理脚本），因此不再需要 extra-Makefile.in 补丁。
+R 4.5.2 特有的内联 python 修复（集成在 `apply-patches.sh` 中）：
+
+| 修复目标 | 解决 |
+|----------|------|
+| `src/include/Rmath.h0.in` | 移除包裹 Rlog1p 声明的 `extern "C"`（在 C 模式下冲突）|
+| `src/main/eval.c` | 添加 Rlog1p 前向声明（Rmath.h 不再声明它）|
+| `src/include/Defn.h` | 添加 Rf_allocVector3 前向声明（R 4.5.2 缺失 R 4.6.0 已有的声明）|
+| `src/include/Defn.h` | 添加 R_popen/R_system 无条件声明（R 4.5.2 将它们放在 HAVE_POPEN 条件之后）|
+| `src/library/tools/src/gramRd.y` | 添加 ENABLE_LEGACY_NONAPI 定义（使 Rf_findVar 等可见）|
+| `src/library/stats/src/distance.c` | 添加 R_ext/MathThreads.h 头文件包含 |
+
+> **注意**：原有的 9–13 个 zlib 压缩变通补丁和 2 个无实际效果的补丁（baseloader.R、gzio.h）已被删除。这些补丁在 R 因加载 OHOS SDK 的 libz.so 而触发 seccomp 封锁时用于绕过压缩接口限制。自 `zlib-ng-compat`（brew）替代 SDK libz 后，所有压缩/解压接口正常工作，不再需要任何变通。
+>
+> 对于 R 4.5.2，libohos_stubs.so 的构建集成在 R 构建系统中（通过 `src/extra/Makefile.in` 中的 SUBDIRS 条目和 `src/extra/ohos_stubs/Makefile.in`）。`etc/ldpaths.in` 中嵌入了 `LD_PRELOAD` 注入，使 libohos_stubs.so 在每次 R 启动时自动预加载。
 
 **注意**：此步骤也可跳过——第 5 步的 `configure-R.sh` 会自动调用 `apply-patches.sh`。单独运行适用于提前查看补丁效果或在修改补丁后单独测试。
 
@@ -375,6 +394,15 @@ readelf -S binary | grep codesign
 | Rust 编译时静态链接 | `libohos_stubs.a` | `posix_spawn_file_actions_addchdir_np`（返回 ENOSYS），`__xpg_strerror_r`（转发 strerror_r） |
 | R 包运行时动态注入 | `libohos_stubs.so`（LD_PRELOAD） | 同上 + `pthread_setcanceltype`（返回 0），`pthread_cancel`（返回 0） |
 
+**LD_PRELOAD 注入方式**：`etc/ldpaths.in`（R 运行时配置文件模板）中嵌入了以下片段，configure 后生成到已安装的 `etc/ldpaths`，确保每次 R 启动时自动预加载：
+
+```sh
+LD_PRELOAD="${R_HOME}/lib${R_ARCH}/libohos_stubs.so${LD_PRELOAD:+:${LD_PRELOAD}}"
+export LD_PRELOAD
+```
+
+此机制使得 `cli`、`purrr` 等使用 `pthread_setcanceltype` 的 R 包能够正常运行，无需修改包源码。
+
 ### 9. OpenBLAS 集成
 
 R 配置时使用 `--with-blas="-lopenblas" --with-lapack`，libR.so 直接链接 libopenblas.so.0。1000x1000 矩阵乘法在 20 核 aarch64 上约 0.48s（~4.2 GFLOPs）。
@@ -406,7 +434,7 @@ R_BREW_LIB="/storage/Users/currentUser/.harmonybrew/lib"
 : ${R_LD_LIBRARY_PATH=${R_BREW_LIB}:${R_HOME}/lib}
 ```
 
-**补丁清理说明**：原有的 13 个（4.6.0）/ 9 个（4.4.3）zlib 压缩变通补丁、2 个无实际效果的补丁（baseloader.R、gzio.h），以及 2 个可外部化的构建集成补丁（main-Makefile.in、extra-Makefile.in）已全部删除。这些补丁在 R 因加载 OHOS SDK 的 libz.so 而触发 seccomp 封锁时用于绕过压缩接口限制，方式包括：
+**补丁清理说明**：原有的 13 个（4.6.0）/ 9 个（4.4.3）zlib 压缩变通补丁和 2 个无实际效果的补丁（baseloader.R、gzio.h）已全部删除。这些补丁在 R 因加载 OHOS SDK 的 libz.so 而触发 seccomp 封锁时用于绕过压缩接口限制，方式包括：
 - 将 `gzfile()` 替换为 `file()` 以绕过 gzopen 封锁
 - 将 `saveRDS(compress=TRUE)` 改为 `compress=FALSE` 以绕过 R_compress1 封锁
 - 在懒加载数据库构建中强制关闭压缩
@@ -414,6 +442,8 @@ R_BREW_LIB="/storage/Users/currentUser/.harmonybrew/lib"
 - 对 `memDecompress()` 添加 tryCatch fallback
 
 自 `zlib-ng-compat`（brew）替代 SDK libz 后，所有压缩/解压接口正常工作，不再需要任何变通。
+
+> 注：R 4.5.2 在公共补丁基础上额外增加了 2 个版本特定补丁（ohos_stubs 构建集成 + ldpaths.in LD_PRELOAD 注入），以及 6 个内联 python 修复。详见上方补丁覆盖范围表。
 
 ---
 
@@ -469,4 +499,4 @@ LC_ALL=C ~/.local/R/lib/R/bin/R --vanilla --no-echo \
 
 ---
 
-*最后更新: 2026-06-02*
+*最后更新: 2026-06-02（新增 R 4.5.2 特有补丁和 LD_PRELOAD 修复文档）*
