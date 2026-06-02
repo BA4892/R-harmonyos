@@ -192,7 +192,6 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     --with-readline \
     --enable-java \
     --with-pcre2 \
-    --with-system-zlib \
     CC="$OHOS_CLANG" \
     CXX="$OHOS_CLANGXX" \
     FC="$GFORTRAN" \
@@ -203,7 +202,7 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     FFLAGS="-O2 -g0" \
     LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${HOMEBREW_PREFIX}/lib -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
-    CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include ${JAVA_CPPFLAGS}" \
+    CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include -DENABLE_LEGACY_NONAPI -DUSE_MATH_THREADS ${JAVA_CPPFLAGS}" \
     CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
     CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
 

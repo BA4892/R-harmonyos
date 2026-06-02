@@ -1,10 +1,10 @@
-# etc/Makeconf.  Generated from Makeconf.in by configure.
+# etc/Makeconf.  Generated from Makeconf.in by configure. -*- Makefile -*-
 #
 # ${R_HOME}/etc/Makeconf
 #
 # R was configured using the following call
 # (not including env. vars and site configuration)
-# configure  '--build=x86_64-pc-linux-gnu' '--host=aarch64-pc-linux-musl' '--prefix=/storage/Users/currentUser/.local/R' '--enable-R-shlib' '--without-x' '--without-tcltk' '--without-libtiff' '--without-aqua' '--with-blas=-lopenblas' '--with-lapack' '--with-readline' '--enable-java' '--with-pcre2' 'CC=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang' 'CXX=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++' 'FC=/storage/Users/currentUser/.local/gfortran/bin/gfortran' 'F77=/storage/Users/currentUser/.local/gfortran/bin/gfortran' 'CFLAGS=-O2 -g0 --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'CXXFLAGS=-O2 -g0 --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'FCFLAGS=-O2 -g0' 'FFLAGS=-O2 -g0' 'LDFLAGS=-fuse-ld=/storage/Users/currentUser/.local/bin/ohos-lld-wrapper -Wl,--allow-shlib-undefined -Wl,-rpath,/storage/Users/currentUser/R-harmonyos/build/lib -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -Wl,-rpath,/storage/Users/currentUser/.harmonybrew/lib -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib64 -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0 -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -L/storage/Users/currentUser/.local/gfortran/lib64 -L/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -L/storage/Users/currentUser/.harmonybrew/lib -L/storage/Users/currentUser/.local/R-deps/lib -L/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/lib/server' 'LIBS=-lm' 'CPPFLAGS=-DSIZE_MAX=18446744073709551615UL -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include -I/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/include -I/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/include/linux' 'CPP=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang -E --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'CXXCPP=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++ -E --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=aarch64-pc-linux-musl' 'JAVA_HOME=/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06' 'PKG_CONFIG_PATH=/storage/Users/currentUser/.harmonybrew/lib/pkgconfig:/storage/Users/currentUser/.harmonybrew/share/pkgconfig:/storage/Users/currentUser/.local/R-deps/lib/pkgconfig'
+# configure  '--build=x86_64-pc-linux-gnu' '--host=aarch64-pc-linux-musl' '--prefix=/storage/Users/currentUser/.local/R' '--enable-R-shlib' '--without-x' '--without-tcltk' '--without-libtiff' '--without-aqua' '--with-blas=-lopenblas' '--with-lapack' '--with-readline' '--enable-java' '--with-pcre2' 'CC=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang' 'CXX=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++' 'FC=/storage/Users/currentUser/.local/gfortran/bin/gfortran' 'F77=/storage/Users/currentUser/.local/gfortran/bin/gfortran' 'CFLAGS=-O2 -g0 --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'CXXFLAGS=-O2 -g0 --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'FCFLAGS=-O2 -g0' 'FFLAGS=-O2 -g0' 'LDFLAGS=-fuse-ld=/storage/Users/currentUser/.local/bin/ohos-lld-wrapper -Wl,--allow-shlib-undefined -Wl,-rpath,/storage/Users/currentUser/R-harmonyos/build/lib -Wl,-rpath,/storage/Users/currentUser/.harmonybrew/lib -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib64 -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0 -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -L/storage/Users/currentUser/.local/gfortran/lib64 -L/storage/Users/currentUser/.harmonybrew/lib -L/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -L/storage/Users/currentUser/.local/R-deps/lib -L/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/lib/server' 'LIBS=-lm' 'CPPFLAGS=-DSIZE_MAX=18446744073709551615UL -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include -I/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/include -I/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/include/linux' 'CPP=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang -E --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'CXXCPP=/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++ -E --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include' 'build_alias=x86_64-pc-linux-gnu' 'host_alias=aarch64-pc-linux-musl' 'JAVA_HOME=/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06' 'PKG_CONFIG_PATH=/storage/Users/currentUser/.harmonybrew/lib/pkgconfig:/storage/Users/currentUser/.harmonybrew/share/pkgconfig:/storage/Users/currentUser/.local/R-deps/lib/pkgconfig'
 
 ## This fails if it contains spaces, or if it is quoted
 include $(R_SHARE_DIR)/make/vars.mk
@@ -51,6 +51,10 @@ CXX23 = /data/service/hnp/bin/aarch64-unknown-linux-ohos-clang++
 CXX23FLAGS = -O2 -g0 --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -I/storage/Users/currentUser/.harmonybrew/include -I/storage/Users/currentUser/.local/R-deps/include $(LTO)
 CXX23PICFLAGS = -fPIC
 CXX23STD = -std=gnu++2b
+CXX26 = 
+CXX26FLAGS =  $(LTO)
+CXX26PICFLAGS = 
+CXX26STD = 
 CXX_VISIBILITY = -fvisibility=hidden
 
 DYLIB_EXT = .so
@@ -87,9 +91,10 @@ JAVA_CPPFLAGS =
 JAVA_LIBS = 
 JAVA_LD_LIBRARY_PATH = 
 LAPACK_LIBS = 
-LDFLAGS = -fuse-ld=/storage/Users/currentUser/.local/bin/ohos-lld-wrapper -Wl,--allow-shlib-undefined -Wl,-rpath,/storage/Users/currentUser/R-harmonyos/build/lib -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -Wl,-rpath,/storage/Users/currentUser/.harmonybrew/lib -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib64 -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0 -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -L/storage/Users/currentUser/.local/gfortran/lib64 -L/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -L/storage/Users/currentUser/.harmonybrew/lib -L/storage/Users/currentUser/.local/R-deps/lib -L/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/lib/server
-## we only need this is if it is external, as otherwise link to R
-LIBINTL= -lintl
+LDFLAGS = -fuse-ld=/storage/Users/currentUser/.local/bin/ohos-lld-wrapper -Wl,--allow-shlib-undefined -Wl,-rpath,/storage/Users/currentUser/R-harmonyos/build/lib -Wl,-rpath,/storage/Users/currentUser/.harmonybrew/lib -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib64 -Wl,-rpath,/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0 -Wl,-rpath,/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib --sysroot=/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot -L/storage/Users/currentUser/.local/gfortran/lib64 -L/storage/Users/currentUser/.harmonybrew/lib -L/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/sysroot/usr/lib/aarch64-linux-ohos -L/storage/Users/currentUser/.local/R-deps/lib -L/data/service/hnp/bishengjdk17.0.13_06.org/bishengjdk17.0.13_06_0.13_06/lib/server
+## We only need this is if it is external and not libc, as otherwise link to R
+## Oo macOS, where libintl is static and so compiled in, can still link to R
+LIBINTL = -lintl
 LIBM = -lm
 LIBR0 = -L"$(R_HOME)/lib$(R_ARCH)"
 LIBR1 = -lR
@@ -136,6 +141,8 @@ SHLIB_CXX20LD = $(CXX20) $(CXX20STD)
 SHLIB_CXX20LDFLAGS = -shared# $(CXX20FLAGS) $(CXX20PICFLAGS) $(LTO_LD)
 SHLIB_CXX23LD = $(CXX23) $(CXX23STD)
 SHLIB_CXX23LDFLAGS = -shared# $(CXX23FLAGS) $(CXX23PICFLAGS) $(LTO_LD)
+SHLIB_CXX26LD = $(CXX26) $(CXX26STD)
+SHLIB_CXX26LDFLAGS = -shared# $(CXX26FLAGS) $(CXX26PICFLAGS) $(LTO_LD)
 SHLIB_EXT = .so
 SHLIB_FCLD = $(FC)
 SHLIB_FCLDFLAGS = -shared# $(FCFLAGS) $(FPICFLAGS)
@@ -166,7 +173,7 @@ STATIC_LIBR = # -Wl,--whole-archive "$(R_HOME)/lib$(R_ARCH)/libR.a" -Wl,--no-who
 ## set on AIX, formerly for old glibc (-D__NO_MATH_INLINES)
 R_XTRA_CFLAGS = 
 ##  was formerly set on HP-UX
-R_XTRA_CPPFLAGS =  -I"$(R_INCLUDE_DIR)" -DNDEBUG
+R_XTRA_CPPFLAGS =  -I"$(R_INCLUDE_DIR)" -DNDEBUG -DENABLE_LEGACY_NONAPI
 ## currently unset
 R_XTRA_CXXFLAGS = 
 ## used for gfortran >= 7 in R 3.6.1 - 4.2.x
@@ -176,7 +183,7 @@ R_XTRA_FFLAGS =
 ## SHLIB_CXXFLAGS is undocumented, there is no SHLIB_FCFLAGS
 ALL_CFLAGS =  $(PKG_CFLAGS) $(CPICFLAGS) $(SHLIB_CFLAGS) $(CFLAGS)
 ## XDEFS was a temporary measure for use by R CMD INSTALL
-ALL_CPPFLAGS =  -I"$(R_INCLUDE_DIR)" -DNDEBUG $(PKG_CPPFLAGS) $(CLINK_CPPFLAGS) $(CPPFLAGS)  $(XDEFS)
+ALL_CPPFLAGS =  -I"$(R_INCLUDE_DIR)" -DNDEBUG -DENABLE_LEGACY_NONAPI -DUSE_MATH_THREADS $(PKG_CPPFLAGS) $(CLINK_CPPFLAGS) $(CPPFLAGS)  $(XDEFS)
 ## CXX_DEFS allows adding defines only for C++, e.g. -DR_NO_REMAP
 ALL_CXXFLAGS =  $(PKG_CXXFLAGS) $(CXXPICFLAGS) $(SHLIB_CXXFLAGS) $(CXXFLAGS) $(CXX_DEFS)
 ALL_OBJCFLAGS = $(PKG_OBJCFLAGS) $(CPICFLAGS) $(SHLIB_CFLAGS) $(OBJCFLAGS)
