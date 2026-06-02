@@ -72,43 +72,6 @@ else:
     print('    eval.c already fixed or pattern not found')
 " 2>&1 || echo '    Warning: could not fix eval.c'
 
-# Fix makebasedb.R: add compress = FALSE to avoid zlib/seccomp issue
-echo "  Fixing makebasedb.R (add compress = FALSE) ..."
-python3 -c "
-with open('src/library/base/makebasedb.R', 'r') as f:
-    c = f.read()
-old = 'makeLazyLoadDB(baseenv(), baseFileBase, variables = basevars)'
-new = 'makeLazyLoadDB(baseenv(), baseFileBase, compress = FALSE, variables = basevars)'
-if old in c:
-    c = c.replace(old, new)
-    with open('src/library/base/makebasedb.R', 'w') as f:
-        f.write(c)
-    print('    Fixed makebasedb.R')
-else:
-    print('    makebasedb.R already fixed or pattern not found')
-" 2>&1 || echo '    Warning: could not fix makebasedb.R'
-
-# Decompress all gzip-compressed sysdata.rda files (gzfile blocked by seccomp)
-echo "  Decompressing gzip-compressed .rda files ..."
-TMP_RDA="/storage/Users/currentUser/R-harmonyos/tmp/rda_decompress_$$"
-for rda_file in src/library/*/R/sysdata.rda; do
-    if [ -f "$rda_file" ] && file "$rda_file" 2>/dev/null | grep -q 'gzip compressed'; then
-        gunzip -c "$rda_file" > "$TMP_RDA" 2>/dev/null && \
-          mv -f "$TMP_RDA" "$rda_file" && \
-          echo "    Decompressed $rda_file" || \
-          echo "    Warning: could not decompress $rda_file"
-    fi
-done
-# Also decompress gzip-compressed .rda data files for datasets package
-for rda_file in src/library/datasets/data/*.rda; do
-    if [ -f "$rda_file" ] && file "$rda_file" 2>/dev/null | grep -q 'gzip compressed'; then
-        gunzip -c "$rda_file" > "$TMP_RDA" 2>/dev/null && \
-          mv -f "$TMP_RDA" "$rda_file" && \
-          echo "    Decompressed $rda_file" || \
-          echo "    Warning: could not decompress $rda_file"
-    fi
-done
-
 # Copy new files
 echo "  Installing new files ..."
 for nf in ../../$PATCHES/new-files/*; do
@@ -127,22 +90,5 @@ for nf in ../../$PATCHES/new-files/*; do
             ;;
     esac
 done
-
-# Fix methods/R/zzz.R: add compress = FALSE to makeLazyLoadDB call
-# (seccomp blocks zlib, so lazy-load databases must be uncompressed)
-echo "  Fixing methods/R/zzz.R (add compress = FALSE) ..."
-python3 -c "
-with open('src/library/methods/R/zzz.R', 'r') as f:
-    c = f.read()
-old = 'tools:::makeLazyLoadDB(ns, dbbase, variables = vars)'
-new = 'tools:::makeLazyLoadDB(ns, dbbase, variables = vars, compress = FALSE)'
-if old in c:
-    c = c.replace(old, new)
-    with open('src/library/methods/R/zzz.R', 'w') as f:
-        f.write(c)
-    print('    Fixed methods/R/zzz.R')
-else:
-    print('    methods/R/zzz.R already fixed or pattern not found')
-" 2>&1 || echo '    Warning: could not fix methods/R/zzz.R'
 
 echo "=== Patches applied successfully ==="

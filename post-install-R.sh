@@ -39,8 +39,34 @@ echo "R_HOME:       $R_HOME"
 echo "构建目录:     $BUILD_DIR"
 echo ""
 
-# ------ 1. 生成 methods 包懒加载数据库 ------
-echo "--- [1/3] 生成 methods 包懒加载数据库 ---"
+# ------ 1. 编译并安装 libohos_stubs.so ------
+echo "--- [1/3] 编译 libohos_stubs.so ---"
+OHOS_STUBS_SRC="${R_SRC}/src/extra/ohos_stubs/ohos_stubs.c"
+OHOS_STUBS_DEST="$R_HOME/lib/libohos_stubs.so"
+if [ -f "$OHOS_STUBS_DEST" ]; then
+    echo "  [跳过] $OHOS_STUBS_DEST 已存在"
+elif [ ! -f "$OHOS_STUBS_SRC" ]; then
+    echo "  [跳过] $OHOS_STUBS_SRC 不存在"
+    echo "  （先运行 configure-R.sh 或 apply-patches.sh 以复制新文件）"
+else
+    OHOS_CLANG="/data/service/hnp/bin/aarch64-unknown-linux-ohos-clang"
+    if [ ! -x "$OHOS_CLANG" ]; then
+        echo "  [错误] 找不到 OHOS clang: $OHOS_CLANG"
+        echo "  （请先安装 OHOS SDK）"
+    else
+        echo "  编译 libohos_stubs.so ..."
+        BUILD_TMP=$(mktemp -p "${TMPDIR:-/storage/Users/currentUser/R-harmonyos/tmp}" -d ohos_stubs_build_XXXXXX)
+        "$OHOS_CLANG" -c -fPIC "$OHOS_STUBS_SRC" -o "$BUILD_TMP/ohos_stubs.o"
+        "$OHOS_CLANG" -shared -o "$BUILD_TMP/libohos_stubs.so" "$BUILD_TMP/ohos_stubs.o"
+        cp "$BUILD_TMP/libohos_stubs.so" "$OHOS_STUBS_DEST"
+        rm -rf "$BUILD_TMP"
+        echo "  [完成] libohos_stubs.so 已安装到 $OHOS_STUBS_DEST"
+    fi
+fi
+echo ""
+
+# ------ 2. 生成 methods 包懒加载数据库 ------
+echo "--- [2/3] 生成 methods 包懒加载数据库 ---"
 METHODS_DIR="$R_HOME/library/methods/R"
 if [ -f "$METHODS_DIR/methods.rdb" ] && [ -f "$METHODS_DIR/methods.rdx" ]; then
     echo "  [跳过] methods 懒加载数据库已存在:"
@@ -53,8 +79,8 @@ else
 fi
 echo ""
 
-# ------ 2. 生成 NEWS.rds ------
-echo "--- [2/3] 生成 NEWS.rds ---"
+# ------ 3. 生成 NEWS.rds ------
+echo "--- [3/3] 生成 NEWS.rds ---"
 if [ ! -d "$BUILD_DIR/doc" ]; then
     echo "  [跳过] $BUILD_DIR/doc 不存在，跳过 NEWS.rds 生成"
     echo "  （make install 可能需要手动处理）"
@@ -87,8 +113,8 @@ else
 fi
 echo ""
 
-# ------ 3. 验证安装完整性 ------
-echo "--- [3/3] 验证安装完整性 ---"
+# ------ 4. 验证安装完整性 ------
+echo "--- [4/4] 验证安装完整性 ---"
 ERRORS=0
 
 check_file() {

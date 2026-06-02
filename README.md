@@ -6,8 +6,8 @@
 
 | 版本 | 状态 | 补丁 |
 |------|------|------|
-| 4.4.3 | ✓ 已测试验证 | `versions/4.4.3/patches/` (15 个) |
-| 4.6.0 | ✓ 已测试验证 | `versions/4.6.0/patches/` (18 个) |
+| 4.4.3 | ✓ 已测试验证 | `versions/4.4.3/patches/` (2 个) |
+| 4.6.0 | ✓ 已测试验证 | `versions/4.6.0/patches/` (2 个) |
 
 ## 快速开始
 
@@ -65,12 +65,12 @@ bash post-install-R.sh
 │   └── R-4.6.0/              #   R 4.6.0 源码
 ├── versions/                 # 各 R 版本的补丁和配置
 │   ├── 4.4.3/
-│   │   ├── patches/          #   15 个 HarmonyOS 补丁
+│   │   ├── patches/          #   2 个 HarmonyOS 补丁
 │   │   │   ├── *.patch
 │   │   │   └── new-files/    #   新增文件（ohos_stubs.c + Makefile.in）
 │   │   └── apply-patches.sh  #   4.4.3 打补丁脚本
 │   └── 4.6.0/
-│       ├── patches/          #   19 个 HarmonyOS 补丁（含 seccomp zlib 变通方案）
+│       ├── patches/          #   2 个 HarmonyOS 补丁
 │       │   ├── *.patch
 │       │   └── new-files/
 │       └── apply-patches.sh  #   4.6.0 打补丁脚本
@@ -117,6 +117,10 @@ bash post-install-R.sh
 
 | 功能 | 状态 |
 |------|------|
+| gzfile() / gzopen 压缩文件读写（zlib-ng-compat） | ✓ |
+| saveRDS/readRDS 压缩序列化（gzip/bzip2/xz） | ✓ |
+| memCompress/memDecompress 内存压缩/解压 | ✓ |
+| PDF 设备 afm 字体指标加载 | ✓ |
 | R REPL 交互式使用（readline Tab 补全） | ✓ |
 | 全部 15 个 base 包构建通过 | ✓ |
 | 12 个可加载包加载正常 | ✓ |
@@ -134,7 +138,7 @@ bash post-install-R.sh
 
 ## 已知限制
 
-- **gzfile() / gzopen / R_compress1 / R_decompress1 不可用**：seccomp 过滤 zlib 所有压缩/解压接口。`untar()` 已改为外部 gzip pipe 替代 gzfile，`install.packages()` 和 `R CMD INSTALL` 可正常使用；预压缩 .rda 文件（gzip/bzip2/xz 三种格式）通过外部 pipe 变通加载；预压缩 vignette.rds / partial.rdb 通过 `memDecompress()` + `unserialize()` 变通读取（memDecompress(gzip) 也受限于 seccomp，回退到外部 gzip pipe）；包懒加载数据库全面使用 `compress=FALSE`；PDF 设备 afm 字体指标文件改用外部 gzip pipe 读取
+- ~~**gzfile() / gzopen / R_compress1 / R_decompress1 不可用**~~ **已修复**（2026-06-02）：OHOS SDK 自带的 libz.so 使用被 seccomp 封锁的自定义 syscall。通过 `etc/ldpaths` 将 brew 的 `zlib-ng-compat` 路径加入 `LD_LIBRARY_PATH`，R 启动时自动加载 zlib-ng-compat 替代 SDK libz，所有压缩/解压接口恢复正常。详见 [doc/BUILD-HarmonyOS.md](doc/BUILD-HarmonyOS.md) 第 12 节。
 - **无 X11 / Tcl/Tk**：HarmonyOS 无相关支持
 - **ELF 不可 strip**：hmdfs 安全隔离上下文被破坏
 

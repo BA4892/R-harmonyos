@@ -1,17 +1,19 @@
 --- R-4.4.3.orig/R-4.4.3/etc/ldpaths.in	2018-09-25 16:46:55.000000000 +0800
-+++ R-4.4.3/etc/ldpaths.in	2026-05-29 10:44:13.497061251 +0800
-@@ -1,13 +1,25 @@
++++ R-4.4.3/etc/ldpaths.in	2026-06-02 10:44:13.497061251 +0800
+@@ -1,13 +1,27 @@
  : ${JAVA_HOME=@JAVA_HOME@}
  : ${R_JAVA_LD_LIBRARY_PATH=@R_JAVA_LD_LIBRARY_PATH@}
 -if test -n "@R_LD_LIBRARY_PATH@"; then
 -: ${R_LD_LIBRARY_PATH=${R_HOME}/lib@R_ARCH@:@R_LD_LIBRARY_PATH@}
 -else
-+## R_LD_LIBRARY_PATH is deliberately set to just R's own lib directory.
-+## All dependency library paths are already encoded via DT_RPATH in the
-+## ELF binaries during linking.  Including @R_LD_LIBRARY_PATH@ (which
-+## configure collects from -L flags) is not needed at runtime and can
-+## cause conflicts (e.g. HarmonyOS SDK sysroot libraries vs host musl).
- : ${R_LD_LIBRARY_PATH=${R_HOME}/lib@R_ARCH@}
++## R_LD_LIBRARY_PATH includes R's own lib directory and the brew prefix.
++## OHOS SDK's libz.so uses custom syscalls blocked by seccomp, so we
++## must load zlib-ng-compat from brew instead.  LD_LIBRARY_PATH takes
++## precedence over DT_RPATH on musl, so placing brew/lib first ensures
++## zlib-ng-compat is found before the SDK's libz.
++## With the corrected RUNPATH order (brew before SDK), this is defensive.
++R_BREW_LIB="/storage/Users/currentUser/.harmonybrew/lib"
++: ${R_LD_LIBRARY_PATH=${R_BREW_LIB}:${R_HOME}/lib@R_ARCH@}
 -fi
  if test -n "${R_JAVA_LD_LIBRARY_PATH}"; then
    R_LD_LIBRARY_PATH="${R_LD_LIBRARY_PATH}:${R_JAVA_LD_LIBRARY_PATH}"
