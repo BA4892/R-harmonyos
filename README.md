@@ -65,12 +65,12 @@ bash post-install-R.sh
 │   └── R-4.6.0/              #   R 4.6.0 源码
 ├── versions/                 # 各 R 版本的补丁和配置
 │   ├── 4.4.3/
-│   │   ├── patches/          #   14 个 HarmonyOS 补丁
+│   │   ├── patches/          #   15 个 HarmonyOS 补丁
 │   │   │   ├── *.patch
 │   │   │   └── new-files/    #   新增文件（ohos_stubs.c + Makefile.in）
 │   │   └── apply-patches.sh  #   4.4.3 打补丁脚本
 │   └── 4.6.0/
-│       ├── patches/          #   16 个 HarmonyOS 补丁（含 seccomp zlib 变通方案）
+│       ├── patches/          #   19 个 HarmonyOS 补丁（含 seccomp zlib 变通方案）
 │       │   ├── *.patch
 │       │   └── new-files/
 │       └── apply-patches.sh  #   4.6.0 打补丁脚本
@@ -134,7 +134,7 @@ bash post-install-R.sh
 
 ## 已知限制
 
-- **gzfile() / gzopen / R_compress1 / R_decompress1 不可用**：seccomp 过滤 zlib 所有压缩/解压接口。`untar()` 已改为外部 gzip pipe 替代 gzfile，`install.packages()` 和 `R CMD INSTALL` 可正常使用；预压缩 .rda 文件通过外部 `gzip -dc` pipe 变通加载；预压缩 vignette.rds / partial.rdb 通过 `memDecompress()` + `unserialize()` 变通读取（memDecompress(gzip) 也受限于 seccomp，回退到外部 gzip pipe）；包懒加载数据库全面使用 `compress=FALSE`
+- **gzfile() / gzopen / R_compress1 / R_decompress1 不可用**：seccomp 过滤 zlib 所有压缩/解压接口。`untar()` 已改为外部 gzip pipe 替代 gzfile，`install.packages()` 和 `R CMD INSTALL` 可正常使用；预压缩 .rda 文件（gzip/bzip2/xz 三种格式）通过外部 pipe 变通加载；预压缩 vignette.rds / partial.rdb 通过 `memDecompress()` + `unserialize()` 变通读取（memDecompress(gzip) 也受限于 seccomp，回退到外部 gzip pipe）；包懒加载数据库全面使用 `compress=FALSE`；PDF 设备 afm 字体指标文件改用外部 gzip pipe 读取
 - **无 X11 / Tcl/Tk**：HarmonyOS 无相关支持
 - **ELF 不可 strip**：hmdfs 安全隔离上下文被破坏
 

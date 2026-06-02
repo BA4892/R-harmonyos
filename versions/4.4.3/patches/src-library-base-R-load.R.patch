@@ -1,5 +1,5 @@
---- R-4.4.3.orig/R-4.4.3/src/library/base/R/load.R	2024-03-27 07:02:03.000000000 +0800
-+++ R-4.4.3/src/library/base/R/load.R	2026-05-03 22:40:21.032056718 +0800
+--- R-4.4.3.orig/src/library/base/R/load.R	2024-03-27 07:02:03.000000000 +0800
++++ R-4.4.3/src/library/base/R/load.R	2026-06-01 17:33:52.355830156 +0800
 @@ -21,7 +21,7 @@
      if (is.character(file)) {
          ## files are allowed to be of an earlier format
@@ -9,3 +9,97 @@
          on.exit(close(con))
          ## Since the connection is not open this opens it in binary mode
          ## and closes it again.
+@@ -31,14 +31,85 @@
+             ## a check while we still know the call to load()
+             if(grepl("RD[ABX][2-9]\r", magic))
+                 stop("input has been corrupted, with LF replaced by CR")
+-            ## Not a version 2 or higher magic number, so try the pre-R-1.4.0 code
+-            warning(sprintf("file %s has magic number '%s'\n",
+-                            sQuote(basename(file)),
+-                            gsub("[\n\r]*", "", magic)),
+-                    "  ",
+-                    "Use of save versions prior to 2 is deprecated",
+-                    domain = NA, call. = FALSE)
+-            return(.Internal(load(file, envir)))
++            ## Not a version 2 or higher magic number.
++            ## HarmonyOS: seccomp blocks gzfile, so .Internal(load) which
++            ## uses gzfile would fail.  Try external gzip -dc pipe for
++            ## gzip-compressed files.
++            close(con); on.exit()
++            tmpcon <- file(file, "rb")
++            on.exit(close(tmpcon))
++            magic2 <- readBin(tmpcon, "raw", 5L)
++            close(tmpcon); on.exit()
++            mi2 <- as.integer(magic2)
++            if (length(mi2) >= 2L && mi2[1L] == 0x1f && mi2[2L] == 0x8b) {
++                con <- pipe(paste("gzip -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++                magic <- readChar(con, 5L, useBytes = TRUE)
++                close(con); on.exit()
++                if (grepl("RD[ABX][2-9]\n", magic)) {
++                    ## gzip-wrapped version 2+ data: reopen pipe for loading
++                    con <- pipe(paste("gzip -dc", shQuote(file)), "rb")
++                    on.exit(close(con))
++                } else {
++                    ## gzip-wrapped old format: unlikely but fall back
++                    warning(sprintf("file %s has magic number '%s'\n",
++                                    sQuote(basename(file)),
++                                    gsub("[\n\r]*", "", magic)),
++                            "  ",
++                            "Use of save versions prior to 2 is deprecated",
++                            domain = NA, call. = FALSE)
++                    return(.Internal(load(file, envir)))
++                }
++            } else if (length(mi2) >= 4L && mi2[1L] == 0x42 &&
++                       mi2[2L] == 0x5a && mi2[3L] == 0x68 &&
++                       mi2[4L] >= 0x31 && mi2[4L] <= 0x39) {
++                ## bzip2-compressed (magic "BZh9" etc.)
++                con <- pipe(paste("bzip2 -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++                magic <- readChar(con, 5L, useBytes = TRUE)
++                close(con); on.exit()
++                if (grepl("RD[ABX][2-9]\n", magic)) {
++                    con <- pipe(paste("bzip2 -dc", shQuote(file)), "rb")
++                    on.exit(close(con))
++                } else {
++                    warning(sprintf("file %s has magic number '%s'\n",
++                                    sQuote(basename(file)),
++                                    gsub("[\n\r]*", "", magic)),
++                            "  ",
++                            "Use of save versions prior to 2 is deprecated",
++                            domain = NA, call. = FALSE)
++                    return(.Internal(load(file, envir)))
++                }
++            } else if (length(mi2) >= 5L && mi2[1L] == 0xfd &&
++                       mi2[2L] == 0x37 && mi2[3L] == 0x7a &&
++                       mi2[4L] == 0x58 && mi2[5L] == 0x5a) {
++                ## xz-compressed (magic "\xfd7zXZ\x00")
++                con <- pipe(paste("xz -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++                magic <- readChar(con, 5L, useBytes = TRUE)
++                close(con); on.exit()
++                if (grepl("RD[ABX][2-9]\n", magic)) {
++                    con <- pipe(paste("xz -dc", shQuote(file)), "rb")
++                    on.exit(close(con))
++                } else {
++                    warning(sprintf("file %s has magic number '%s'\n",
++                                    sQuote(basename(file)),
++                                    gsub("[\n\r]*", "", magic)),
++                            "  ",
++                            "Use of save versions prior to 2 is deprecated",
++                            domain = NA, call. = FALSE)
++                    return(.Internal(load(file, envir)))
++                }
++            } else {
++                ## Not gzip-compressed: try pre-1.4.0 loader
++                warning(sprintf("file %s has magic number '%s'\n",
++                                sQuote(basename(file)),
++                                gsub("[\n\r]*", "", magic)),
++                        "  ",
++                        "Use of save versions prior to 2 is deprecated",
++                        domain = NA, call. = FALSE)
++                return(.Internal(load(file, envir)))
++            }
+         }
+     } else if (inherits(file, "connection")) {
+         con <- if(inherits(file, "gzfile") || inherits(file, "gzcon")) file

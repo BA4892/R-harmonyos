@@ -1,11 +1,101 @@
---- R-4.4.3.orig/R-4.4.3/src/library/base/R/load.R	2024-03-27 07:02:03.000000000 +0800
-+++ R-4.4.3/src/library/base/R/load.R	2026-05-03 22:40:21.032056718 +0800
-@@ -21,7 +21,7 @@
+--- R-4.6.0.orig/src/library/base/R/load.R	2024-12-04 22:08:23.000000000 +0800
++++ R-4.6.0/src/library/base/R/load.R	2026-06-01 17:33:43.991830937 +0800
+@@ -21,20 +21,79 @@
      if (is.character(file)) {
          ## files are allowed to be of an earlier format
          ## gzfile can open gzip, bzip2, xz and uncompressed files.
 -        con <- gzfile(file)
-+        con <- file(file)
++        con <- file(file, "rb")
          on.exit(close(con))
-         ## Since the connection is not open this opens it in binary mode
-         ## and closes it again.
+-        ## Since the connection is not open this opens it in binary mode
+-        ## and closes it again.
+-        magic <- readChar(con, 5L, useBytes = TRUE)
+-	if (!length(magic)) stop("empty (zero-byte) input file")
+-	if (!grepl("RD[ABX][2-9]\n", magic)) {
+-            ## a check while we still know the call to load()
+-            if(grepl("RD[ABX][2-9]\r", magic))
++        ## HarmonyOS: use readBin to avoid gzfile auto-detection in
++        ## file() which is blocked by seccomp.
++        magic <- readBin(con, "raw", 5L)
++        close(con); on.exit()
++        if (length(magic) < 5L) stop("empty (zero-byte) input file")
++        ## HarmonyOS: seccomp blocks gzfile, so decompress
++        ## gzip-wrapped files via external pipe.
++        mi <- as.integer(magic)
++        if (mi[1L] == 0x1f && mi[2L] == 0x8b) {
++            ## gzip-compressed
++            con <- pipe(paste("gzip -dc", shQuote(file)), "rb")
++            on.exit(close(con))
++            magic <- readBin(con, "raw", 5L)
++            close(con); on.exit()
++            if (length(magic) >= 5L) {
++                mi <- as.integer(magic)
++                con <- pipe(paste("gzip -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++            } else {
++                stop("empty (zero-byte) input file")
++            }
++        } else if (length(magic) >= 4L && mi[1L] == 0x42 &&
++                   mi[2L] == 0x5a && mi[3L] == 0x68 &&
++                   mi[4L] >= 0x31 && mi[4L] <= 0x39) {
++            ## bzip2-compressed (magic "BZh9" etc.)
++            con <- pipe(paste("bzip2 -dc", shQuote(file)), "rb")
++            on.exit(close(con))
++            magic <- readBin(con, "raw", 5L)
++            close(con); on.exit()
++            if (length(magic) >= 5L) {
++                mi <- as.integer(magic)
++                con <- pipe(paste("bzip2 -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++            } else {
++                stop("empty (zero-byte) input file")
++            }
++        } else if (length(magic) >= 5L && mi[1L] == 0xfd &&
++                   mi[2L] == 0x37 && mi[3L] == 0x7a &&
++                   mi[4L] == 0x58 && mi[5L] == 0x5a) {
++            ## xz-compressed (magic "\xfd7zXZ\x00")
++            con <- pipe(paste("xz -dc", shQuote(file)), "rb")
++            on.exit(close(con))
++            magic <- readBin(con, "raw", 5L)
++            close(con); on.exit()
++            if (length(magic) >= 5L) {
++                mi <- as.integer(magic)
++                con <- pipe(paste("xz -dc", shQuote(file)), "rb")
++                on.exit(close(con))
++            } else {
++                stop("empty (zero-byte) input file")
++            }
++        } else {
++            con <- file(file, "rb")
++            on.exit(close(con))
++        }
++        if (mi[1L] == 0x52 && mi[2L] == 0x44 &&
++            mi[3L] %in% c(0x41, 0x42, 0x58) &&
++            mi[4L] >= 0x32 && mi[4L] <= 0x39 &&
++            mi[5L] == 0x0a) {
++            ## OK: version >= 2 format, proceed to loadFromConn2
++        } else {
++            ## Not a version 2 or higher magic number.
++            if (mi[1L] == 0x52 && mi[2L] == 0x44 &&
++                mi[3L] %in% c(0x41, 0x42, 0x58) &&
++                mi[4L] >= 0x32 && mi[4L] <= 0x39 &&
++                mi[5L] == 0x0d)
+                 stop("input has been corrupted, with LF replaced by CR")
+-            ## Not a version 2 or higher magic number, so try the pre-R-1.4.0 code
++            close(con); on.exit()
+             warning(sprintf("file %s has magic number '%s'\n",
+                             sQuote(basename(file)),
+-                            gsub("[\n\r]*", "", magic)),
++                            paste(sprintf("%02x", as.integer(magic)), collapse=" ")),
+                     "  ",
+                     "Use of save versions prior to 2 is deprecated",
+                     domain = NA, call. = FALSE)
+@@ -42,7 +101,7 @@
+         }
+     } else if (inherits(file, "connection")) {
+         con <- if(inherits(file, "gzfile") || inherits(file, "gzcon")) file
+-               else gzcon(file)
++               else file  # HarmonyOS: gzcon uses zlib internally, blocked by seccomp
+     } else stop("bad 'file' argument")
+
+     if (verbose)

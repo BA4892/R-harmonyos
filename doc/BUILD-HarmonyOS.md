@@ -9,7 +9,7 @@
 | 版本 | 补丁位置 | 补丁数 |
 |------|----------|--------|
 | 4.4.3 | `versions/4.4.3/patches/` | 15（新增 Rscript execv 变通） |
-| 4.6.0 | `versions/4.6.0/patches/` | 18（新增 seccomp zlib 变通方案 + gzfile pipe 替代 + Rscript execv 变通） |
+| 4.6.0 | `versions/4.6.0/patches/` | 19（新增 seccomp zlib 变通方案 + gzfile pipe 替代 + Rscript execv 变通 + PDF afm pipe） |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos)

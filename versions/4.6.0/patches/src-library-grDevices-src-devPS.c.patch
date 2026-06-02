@@ -1,0 +1,62 @@
+--- R-4.6.0.orig/src/library/grDevices/src/devPS.c	2024-12-04 22:08:23.000000000 +0800
++++ R-4.6.0/src/library/grDevices/src/devPS.c	2026-06-01 17:39:58.023829531 +0800
+@@ -572,7 +572,8 @@
+ {
+     char buf[BUFSIZE], *p, truth[10];
+     int mode, i = 0, j, ii, nKPX=0;
+-    gzFile fp;
++    int use_pclose = 0;
++    FILE *fp;
+
+     if(strchr(fontpath, FILESEP[0])) strcpy(buf, fontpath);
+     else
+@@ -583,15 +584,20 @@
+     Rprintf("reencode is %d\n", reencode);
+ #endif
+
+-    if (!(fp = R_gzopen(R_ExpandFileName(buf), "rb"))) {
++    /* HarmonyOS: seccomp blocks zlib, so use external gzip -dc pipe
++       instead of R_gzopen for .gz files, and fopen for uncompressed. */
++    snprintf(buf, BUFSIZE,"gzip -dc %s", R_ExpandFileName(buf));
++    if (!(fp = popen(buf, "r"))) {
+ 	/* try uncompressed version */
+ 	snprintf(buf, BUFSIZE,"%s%slibrary%sgrDevices%safm%s%s",
+ 		 R_Home, FILESEP, FILESEP, FILESEP, FILESEP, fontpath);
+-	if (!(fp = R_gzopen(R_ExpandFileName(buf), "rb"))) {
+-	    warning(_("afm file '%s' could not be opened"),
++	if (!(fp = fopen(R_ExpandFileName(buf), "r"))) {
++	    warning(_("afm file '%s' could not be opened"),
+ 		    R_ExpandFileName(buf));
+ 	    return 0;
+ 	}
++    } else {
++	use_pclose = 1;
+     }
+
+     metrics->KernPairs = NULL;
+@@ -605,7 +611,7 @@
+ 	metrics->CharInfo[ii].WX = NA_SHORT;
+ 	for(j = 0; j < 4; j++) metrics->CharInfo[ii].BBox[j] = 0;
+     }
+-    while (R_gzgets(fp, buf, BUFSIZE)) {
++    while (fgets(buf, BUFSIZE, fp)) {
+ 	switch(KeyType(buf)) {
+
+ 	case StartFontMetrics:
+@@ -711,7 +717,7 @@
+ 	}
+     }
+     metrics->nKP = (short) i;
+-    R_gzclose(fp);
++    if (use_pclose) pclose(fp); else fclose(fp);
+     /* Make an index for kern-pair searches: relies on having contiguous
+        blocks by first char for efficiency, but works in all cases. */
+     {
+@@ -730,7 +736,7 @@
+     }
+     return 1;
+ pserror:
+-    R_gzclose(fp);
++    if (use_pclose) pclose(fp); else fclose(fp);
+     return 0;
+ }
