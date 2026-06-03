@@ -10,7 +10,7 @@
 |------|----------|--------|
 | 4.4.3 | `versions/4.4.3/patches/` | 2 |
 | 4.5.2 | `versions/4.5.2/patches/` | 4 |
-| 4.6.0 | `versions/4.6.0/patches/` | 2 |
+| 4.6.0 | `versions/4.6.0/patches/` | 3 |
 
 - **目标**: aarch64, HarmonyOS HongMeng Kernel 1.12.0
 - **工具链**: OHOS SDK 26.0.0.18 (Clang 15.0.4) + [gfortran 14.2.0](https://github.com/sxgou/gfortran-harmonyos)
@@ -30,7 +30,8 @@
 | `build-deps.sh` | **第 2 步** | 自动安装 brew 依赖库 |
 | `apply-patches.sh [版本]` | **第 4 步**，或由 configure-R.sh 自动调用 | 对 `src/R-版本/` 打 HarmonyOS 补丁。`bash apply-patches.sh 4.6.0` |
 | `configure-R.sh [版本]` | **第 5 步** | 配置交叉编译（自动调用 apply-patches.sh）。`bash configure-R.sh 4.6.0` |
-| `post-install-R.sh [版本]` | **第 8 步** | 生成 methods 懒加载库、NEWS.rds、验证安装。`bash post-install-R.sh 4.6.0` |
+| `post-install-R.sh [版本]` | **第 8 步** | 生成 methods 懒加载库、NEWS.rds、配置用户 R 环境、验证安装。`bash post-install-R.sh 4.6.0` |
+| `versions/<版本>/patch-rcpp.sh` | **自动**（见 harmony_install）| 修补 Rcpp 的 undoRmath.h，解决 log1p 宏冲突。也可手动运行。 |
 
 所有步骤必须**按顺序执行**，不可跳过或调换次序。
 
@@ -192,6 +193,7 @@ bash apply-patches.sh 4.6.0
 |----------|----------|-------|-------|-------|
 | `etc-ldpaths.in.patch` | LD_PRELOAD 注入 libohos_stubs.so；LD_LIBRARY_PATH 加入 brew/lib 以优先使用 zlib-ng-compat | ✓ | ✓ | ✓ |
 | `src-unix-Rscript.c.patch` | execv() 失败时 dlopen("libR.so") 直接调用 Rf_initialize_R + Rf_mainloop（绕过 seccomp execv 封锁） | ✓ | ✓ | ✓ |
+| `namespace-assignNativeRoutines.patch` | 修复 `assignNativeRoutines` 中 `if(exists(...))` 跳过已存在绑定问题。惰性加载的 `C_*` 变量（EXTPTRSXP 序列化后为 NULL）不会被 `.Call` 注册覆盖，导致所有 `C_*` 调用失败 | ✗ | ✗ | ✓ |
 | `src-extra-Makefile.in-ohos_stubs.patch` | 将 ohos_stubs 加入 `src/extra/Makefile.in` 的 SUBDIRS，使 libohos_stubs.so 作为标准 make 流程的一部分自动构建 | ✗ | ✓ | ✗ |
 | `etc-ldpaths.in-LD_PRELOAD.patch` | 在 ldpaths.in 模板中嵌入 LD_PRELOAD 配置，使 libohos_stubs.so 在每次 R 启动时自动预加载 | ✗ | ✓ | ✗ |
 
@@ -303,7 +305,12 @@ bash post-install-R.sh
 
 1. **生成 methods 包懒加载数据库** — 生成 `library/methods/R/methods`、`methods.rdb` (963 KB)、`methods.rdx` (23 KB)。stats4 等依赖 methods 的包需要此文件，否则加载失败。
 2. **生成 NEWS.rds / NEWS.2.rds / NEWS.3.rds** — 如果 `make install` 未自动生成，从 `NEWS.Rd` 编译。
-3. **验证安装完整性** — 检查 R 二进制、libR.so、libohos_stubs.so 以及 base/methods/stats 等关键包是否就位。
+3. **配置用户 R 环境** — 自动创建 `~/.Rprofile`，包含：
+   - `TMPDIR` 设为 hmfs 路径（避免 hmdfs 限制导致 configure 脚本失败）
+   - `harmony_install()` 辅助函数，自动处理 `--host` 和 `--no-test-load`
+   - Rcpp 安装后自动修补 `undoRmath.h`（解决 `log1p` 宏冲突）
+   - `TMPDIR` 环境变量自动追加到 `~/.bashrc`
+4. **验证安装完整性** — 检查 R 二进制、libR.so、libohos_stubs.so 以及 base/methods/stats 等关键包是否就位。
 
 脚本可在项目根目录重复运行（已存在的步骤自动跳过）。
 
@@ -321,6 +328,69 @@ R 安装后通过包装脚本启动：
 ```
 
 **注意**：早期版本中 `Rscript` 因 seccomp 阻止 `execv()` 不可用。自补丁 #18（`src/unix/Rscript.c`）起，Rscript 通过 `dlopen("libR.so")` 直接调用 `Rf_initialize_R` + `Rf_mainloop` 变通实现，现已正常工作。
+
+---
+
+## 安装 R 包
+
+### 推荐方式：`harmony_install()`
+
+运行 `post-install-R.sh` 后，`~/.Rprofile` 中定义了 `harmony_install()` 辅助函数，自动处理 HarmonyOS 特有的配置问题：
+
+```r
+# 安装单个包（自动加 --host=aarch64-linux-ohos）
+harmony_install("jsonlite")
+
+# 批量安装
+harmony_install(c("dplyr", "ggplot2", "Seurat"))
+
+# 指定镜像
+harmony_install("Seurat", repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN")
+```
+
+`harmony_install()` 自动完成以下工作：
+
+| 问题 | 自动处理方式 |
+|------|-------------|
+| configure 无法执行测试程序（SELinux 封锁） | 传递 `configure.args = "--host=aarch64-linux-ohos"` |
+| hmdfs 临时文件限制 | 使用 `TMPDIR=/data/storage/el4/base/R-build`（hmfs） |
+| Rcpp `undoRmath.h` 缺少 `#undef log1p` | Rcpp 安装后自动检测并修补 |
+| 包安装后加载测试可能失败 | 传递 `INSTALL_opts = "--no-test-load"` |
+
+### 手动方式（`--vanilla` 模式）
+
+如果习惯用 `--vanilla` 启动 R（跳过 `.Rprofile`），需要手动传参：
+
+```r
+install.packages("Seurat",
+    repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN",
+    configure.args = "--host=aarch64-linux-ohos",
+    INSTALL_opts = "--no-test-load")
+```
+
+### Seurat 安装
+
+Seurat 5.5.0 已在 HarmonyOS 上完整验证：
+
+```r
+harmony_install("Seurat")
+```
+
+验证核心流程：
+
+```r
+library(Seurat)
+obj <- CreateSeuratObject(counts = data)
+obj <- NormalizeData(obj, verbose = FALSE)
+obj <- FindVariableFeatures(obj, verbose = FALSE)
+obj <- ScaleData(obj, verbose = FALSE)
+obj <- RunPCA(obj, verbose = FALSE, npcs = 10)
+obj <- FindNeighbors(obj, verbose = FALSE, dims = 1:10)
+obj <- FindClusters(obj, verbose = FALSE)
+obj <- RunUMAP(obj, dims = 1:10, verbose = FALSE)
+```
+
+
 
 ---
 
@@ -494,9 +564,10 @@ LC_ALL=C ~/.local/R/lib/R/bin/R --vanilla --no-echo \
 - [x] ggplot2 + CairoPNG 渲染
 - [x] readline 交互式终端（Tab 补全和方向键）
 - [x] Jupyter IRkernel
+- [x] Seurat 5.5.0（NormalizeData, RunPCA, FindClusters, RunUMAP 等完整流程）
 - [ ] tcltk（需 Tcl/Tk 运行时）
 - [ ] 推荐包 (MASS, lattice 等)
 
 ---
 
-*最后更新: 2026-06-02（新增 R 4.5.2 特有补丁和 LD_PRELOAD 修复文档）*
+*最后更新: 2026-06-03（新增 namespace.R 修复补丁、Seurat 支持、harmony_install 自动化配置）*

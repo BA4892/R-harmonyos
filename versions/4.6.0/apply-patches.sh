@@ -31,6 +31,14 @@ for pf in ../../$PATCHES/*.patch; do
     patch -p1 -s < "$pf" 2>/dev/null || true
 done
 
+echo "  Verifying assignNativeRoutines fix in namespace.R ..."
+if grep -q 'unlockBinding.*varName.*env' src/library/base/R/namespace.R 2>/dev/null; then
+    echo "    assignNativeRoutines fix already applied"
+else
+    echo "    WARNING: assignNativeRoutines patch not applied. Run:"
+    echo "      cd src/R-4.6.0 && patch -p1 < ../../versions/4.6.0/patches/namespace-assignNativeRoutines.patch"
+fi
+
 # Fix Rmath.h0.in: remove the Rlog1p declaration entirely (it was wrapped
 # in 'extern "C"' which is C++ syntax, and keeping it in C mode conflicts
 # with arithmetic.c's 'static double Rlog1p()'.  nmath/log1p.c provides the

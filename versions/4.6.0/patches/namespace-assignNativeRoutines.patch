@@ -1,0 +1,30 @@
+--- a/src/library/base/R/namespace.R
++++ b/src/library/base/R/namespace.R
+@@ -319,18 +319,16 @@
+                            lapply(type,
+                                   function(sym) {
+                                       varName <- paste0(fixes[1L], sym$name, fixes[2L])
+-                                      if(exists(varName, envir = env, inherits = FALSE))
+-                                          warning(gettextf(
+-		"failed to assign RegisteredNativeSymbol for %s to %s since %s is already defined in the %s namespace",
+-                                                           sym$name, varName, varName, sQuote(package)),
+-                                                  domain = NA, call. = FALSE)
+-                                      else {
++                                      if(exists(varName, envir = env, inherits = FALSE)) {
++                                          if(bindingIsLocked(varName, env))
++                                              unlockBinding(varName, env)
+                                           env[[varName]] <- sym
+-                                          varnames <<- c(varnames,
+-                                                         varName)
+-                                          symnames <<- c(symnames,
+-                                                         sym$name)
+-                                      }
++                                      } else
++                                          env[[varName]] <- sym
++                                      varnames <<- c(varnames,
++                                                     varName)
++                                      symnames <<- c(symnames,
++                                                     sym$name)
+                                   })
+                        })
+             }
