@@ -2,8 +2,8 @@
 # Build remaining R 4.6.0 packages directly
 set -e
 
-export ICU_DATA=/storage/Users/currentUser/R-harmonyos/tmp/icu-install/share/icu/78.3
-export LD_LIBRARY_PATH="/storage/Users/currentUser/R-harmonyos/build/lib:/storage/Users/currentUser/R-harmonyos/tmp/icu-install/lib:/storage/Users/currentUser/.harmonybrew/lib:/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib:/storage/Users/currentUser/.local/gfortran/lib64:/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0"
+export ICU_DATA=/storage/Users/currentUser/.local/R-deps/share/icu/78.3
+export LD_LIBRARY_PATH="/storage/Users/currentUser/R-harmonyos/build/lib:/storage/Users/currentUser/.local/R-deps/lib:/storage/Users/currentUser/.harmonybrew/lib:/data/service/hnp/ohos-sdk.org/ohos-sdk_26.0.0.18/ohos/native/llvm/lib:/storage/Users/currentUser/.local/gfortran/lib64:/storage/Users/currentUser/.local/gfortran/lib/gcc/aarch64-unknown-linux-ohos/14.2.0"
 
 R_EXE="/storage/Users/currentUser/R-harmonyos/build/bin/R --vanilla --no-echo"
 TOP_BUILDDIR=/storage/Users/currentUser/R-harmonyos/build

@@ -101,7 +101,7 @@ rm -f config.cache config.status
 # PKG_CONFIG_PATH: brew provides all .pc files.
 # Custom ICU (locally-built with valid .codesign) takes precedence.
 # Note: share/pkgconfig needed for xorgproto (X11 proto .pc files)
-ICU_INSTALL=/storage/Users/currentUser/R-harmonyos/tmp/icu-install
+ICU_INSTALL=/storage/Users/currentUser/.local/R-deps
 export PKG_CONFIG_PATH="${ICU_INSTALL}/lib/pkgconfig:${HOMEBREW_PREFIX}/lib/pkgconfig:${HOMEBREW_PREFIX}/share/pkgconfig:${RDEPS}/lib/pkgconfig"
 
 # ICU data: the prebuilt icudt78l.dat provides full locale/collation/break data.

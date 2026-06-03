@@ -89,7 +89,7 @@ for (pkg in pkgs) {
   system2(r_exe, args = c("--vanilla", "--no-echo"),
           env = c(paste0("R_DEFAULT_PACKAGES=tools"),
                   "LC_ALL=C",
-                  paste0("ICU_DATA=", Sys.getenv("ICU_DATA", "/storage/Users/currentUser/R-harmonyos/tmp/icu-install/share/icu/78.3")),
+                  paste0("ICU_DATA=", Sys.getenv("ICU_DATA", "/storage/Users/currentUser/.local/R-deps/share/icu/78.3")),
                   paste0("LD_LIBRARY_PATH=", Sys.getenv("LD_LIBRARY_PATH"))),
           input = cmd,
           stdout = FALSE, stderr = FALSE)
