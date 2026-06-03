@@ -13,15 +13,24 @@
 #   - lld instead of bfd: hmdfs requires .codesign section (lld only) and rejects
 #     bfd-linked shared libs with EACCES at dlopen() time
 #   - -Wl,-rpath in LDFLAGS: lld doesn't auto-embed -L paths as rpath like bfd did
+#   - X11 enabled (brew provides libX11, libXext, libXt, plus cairo-X11 backend)
+#   - libtiff enabled (brew provides libtiff, auto-detected via pkg-config)
+#   - cairo: --no-as-needed wrappers in X11/cairo Makefiles force libcairo.so/freetype
+#     into NEEDED since lld strips them with default --as-needed
+#   - Stale libcairo.a/libfreetype.a in R-deps/lib removed: they took precedence over
+#     brew's libcairo.so in -L search order, causing static linking and missing NEEDED
 #
 # ================================================================
 # R System Library Dependencies for HarmonyOS aarch64
 # ================================================================
 #
-# brew provides (all static libs available):
+# brew provides (all static + shared libs available):
 #   bzip2, xz, pcre2, curl, libpng, freetype, cairo, geos, gmp,
 #   libxml2, unixodbc, expat, fontconfig, glpk, pixman, icu4c@78,
 #   libjpeg-turbo, readline, ncurses, harfbuzz, fribidi
+# brew also provides X11 stack (auto-detected via pkg-config):
+#   libX11, libXext, libXt, libSM, libICE, libxcb, xorgproto
+# brew provides libtiff (auto-detected via pkg-config)
 #
 # Manual (R-deps, ~/.local/R-deps):
 #   fftw3, zeromq, ANN, mpfr  — not yet in brew
@@ -152,6 +161,7 @@ for cv in \
     ac_cv_type_mbstate_t=yes \
     lt_cv_truncate_bin="/usr/bin/dd bs=4096 count=1" \
     ac_cv_have_decl_size_max=yes \
+    r_cv_cairo_works=yes \
     r_cv_icu=yes \
     ac_cv_lib_readline_rl_callback_read_char=yes \
     ac_cv_lib_ncurses_main=yes \
@@ -167,13 +177,21 @@ done
 #
 # Intentionally disabled (not available or not useful on HarmonyOS):
 #   --without-tcltk       (no Tcl/Tk)
-#   --without-libtiff     (no libtiff)
 #   --without-aqua        (macOS only)
 #
-# X11 is auto-detected via pkg-config now that brew provides libx11 + xorgproto.
-# Cairo is auto-detected (fontconfig is now fully installed in brew, not a stub).
-# The X11 graphics device requires a running X server (e.g., XWayland or SSH -X),
-# but Cairo's PNG/SVG/PDF backends work without X11.
+# X11 (libx11 + xorgproto) and libtiff are now provided by brew and auto-detected
+# via pkg-config.  X11 requires a running X server (XWayland or SSH -X), but
+# Cairo's PNG/SVG/PDF backends work without it.  libtiff is used by the tiff()
+# graphics device.
+#
+# Known limitations:
+#   - cairo_ps() fails: cairo's PS backend uses tmpfile()/mkstemp() in /tmp,
+#     which is read-only on HarmonyOS. cairo_pdf/svg/png(type="cairo") work.
+#   - Stale libcairo.a/libfreetype.a in ~/.local/R-deps/lib: if present, lld
+#     finds them before brew's libcairo.so (since -L R-deps comes before -L brew
+#     in search path), resulting in static linking and missing DT_NEEDED entries.
+#     Remove them if you see "symbol not found" errors for cairo_xlib_surface_create
+#     at runtime:  mv ~/.local/R-deps/lib/libcairo*.a ~/.local/R-deps/lib/stale/
 #
 # OpenBLAS is used via harmonybrew: --with-blas="-lopenblas" enables SIMD
 # optimized BLAS + LAPACK (10-50x speedup vs R's internal reference BLAS).
@@ -191,9 +209,7 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     --host=aarch64-pc-linux-musl \
     --prefix=/storage/Users/currentUser/.local/R \
     --enable-R-shlib \
-    --without-x \
     --without-tcltk \
-    --without-libtiff \
     --without-aqua \
     --with-blas="-lopenblas" \
     --with-lapack \
@@ -208,7 +224,7 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include" \
     FCFLAGS="-O2 -g0" \
     FFLAGS="-O2 -g0" \
-    LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} -Wl,-rpath,${ICU_INSTALL}/lib --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${HOMEBREW_PREFIX}/lib -L${ICU_INSTALL}/lib -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
+    LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,--no-as-needed -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${ICU_INSTALL}/lib -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${ICU_INSTALL}/lib -L${HOMEBREW_PREFIX}/lib -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
     CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include -DENABLE_LEGACY_NONAPI -DUSE_MATH_THREADS ${JAVA_CPPFLAGS}" \
     CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include" \
@@ -243,4 +259,31 @@ with open('config.status', 'w') as f:
 " 2>/dev/null || true
     echo "Re-running config.status ..."
     /bin/sh config.status 2>&1 | tee -a /storage/Users/currentUser/R-harmonyos/build/configure.log
+fi
+
+# Inject ICU_DATA into Makeconf so ICU data is found during the build
+# (e.g., for the tools package sysdata step which runs R at build time).
+MAKECONF="${BUILD_DIR}/etc/Makeconf"
+if [ -f "$MAKECONF" ]; then
+    if ! grep -q "^ICU_DATA" "$MAKECONF" 2>/dev/null; then
+        echo "Injecting ICU_DATA into Makeconf ..."
+        echo "" >> "$MAKECONF"
+        echo "## ICU data directory (needed at build time for ICU collation)" >> "$MAKECONF"
+        echo "ICU_DATA = ${ICU_DATA}" >> "$MAKECONF"
+        echo "export ICU_DATA" >> "$MAKECONF"
+    fi
+fi
+
+# Inject ICU_DATA into ldpaths (sourced by bin/R at startup) so ICU
+# data is found at runtime too.
+LDPATHS="${BUILD_DIR}/etc/ldpaths"
+if [ -f "$LDPATHS" ]; then
+    if ! grep -q "^export ICU_DATA" "$LDPATHS" 2>/dev/null; then
+        echo "Injecting ICU_DATA into ldpaths ..."
+        echo "" >> "$LDPATHS"
+        echo "## ICU data directory -- must be set before R starts so ICU can find" >> "$LDPATHS"
+        echo "## locale/collation data files." >> "$LDPATHS"
+        echo ": \${ICU_DATA=\"${ICU_DATA}\"}" >> "$LDPATHS"
+        echo "export ICU_DATA" >> "$LDPATHS"
+    fi
 fi
