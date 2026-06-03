@@ -74,7 +74,7 @@ export JAVA_HOME JAVA JAVAC JAR JAVA_CPPFLAGS JAVA_LIBS
 # NOTE: Do NOT add ${HOMEBREW_PREFIX}/lib here — brew's libxml2.so.16
 # conflicts with OHOS SDK's libxml2 (lld needs the SDK's version at runtime).
 # Instead add OHOS_LLVM_LIB so lld can find its own libxml2 dependency.
-export LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${HOMEBREW_PREFIX}/lib:${GFORTRAN_LIB}:${GCC_LIB}:$LD_LIBRARY_PATH"
 
 # Use lld wrapper instead of GNU ld (bfd) because hmdfs requires the .codesign
 # section that only lld generates.  Without .codesign, hmdfs refuses to
@@ -98,9 +98,16 @@ bash "${R_SRC}/../../apply-patches.sh" "${R_VERSION}" 2>&1 || {
 # Clean build directory to avoid stale cache
 rm -f config.cache config.status
 
-# PKG_CONFIG_PATH: brew provides all .pc files
+# PKG_CONFIG_PATH: brew provides all .pc files.
+# Custom ICU (locally-built with valid .codesign) takes precedence.
 # Note: share/pkgconfig needed for xorgproto (X11 proto .pc files)
-export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/lib/pkgconfig:${HOMEBREW_PREFIX}/share/pkgconfig:${RDEPS}/lib/pkgconfig"
+ICU_INSTALL=/storage/Users/currentUser/R-harmonyos/tmp/icu-install
+export PKG_CONFIG_PATH="${ICU_INSTALL}/lib/pkgconfig:${HOMEBREW_PREFIX}/lib/pkgconfig:${HOMEBREW_PREFIX}/share/pkgconfig:${RDEPS}/lib/pkgconfig"
+
+# ICU data: the prebuilt icudt78l.dat provides full locale/collation/break data.
+# The stub libicudata.so (locally compiled) only provides the entry point symbol;
+# ICU loads the actual data from this file at runtime.
+export ICU_DATA="${ICU_INSTALL}/share/icu/78.3"
 
 # Pre-seed configure cache variables to skip runtime tests (blocked by seccomp)
 # and link tests that fail due to missing libraries on HarmonyOS
@@ -145,6 +152,7 @@ for cv in \
     ac_cv_type_mbstate_t=yes \
     lt_cv_truncate_bin="/usr/bin/dd bs=4096 count=1" \
     ac_cv_have_decl_size_max=yes \
+    r_cv_icu=yes \
     ac_cv_lib_readline_rl_callback_read_char=yes \
     ac_cv_lib_ncurses_main=yes \
     ac_cv_lib_termcap_main=yes \
@@ -196,14 +204,14 @@ LD_LIBRARY_PATH="${OHOS_LLVM_LIB}:${GFORTRAN_LIB}:${GCC_LIB}:${LD_LIBRARY_PATH}"
     CXX="$OHOS_CLANGXX" \
     FC="$GFORTRAN" \
     F77="$GFORTRAN" \
-    CFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
-    CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
+    CFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include" \
+    CXXFLAGS="-O2 -g0 --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include" \
     FCFLAGS="-O2 -g0" \
     FFLAGS="-O2 -g0" \
-    LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${HOMEBREW_PREFIX}/lib -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
+    LDFLAGS="${USE_LD} -Wl,--allow-shlib-undefined -Wl,-rpath,${BUILD_DIR}/lib -Wl,-rpath,${HOMEBREW_PREFIX}/lib -Wl,-rpath,${SYSROOT}/usr/lib/aarch64-linux-ohos -Wl,-rpath,${GFORTRAN_LIB} -Wl,-rpath,${GCC_LIB} -Wl,-rpath,${OHOS_LLVM_LIB} -Wl,-rpath,${ICU_INSTALL}/lib --sysroot=$SYSROOT -L${GFORTRAN_LIB} -L${HOMEBREW_PREFIX}/lib -L${ICU_INSTALL}/lib -L${SYSROOT}/usr/lib/aarch64-linux-ohos -L${RDEPS}/lib -L${JAVA_HOME}/lib/server" \
     LIBS="-lm" \
-    CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include -DENABLE_LEGACY_NONAPI -DUSE_MATH_THREADS ${JAVA_CPPFLAGS}" \
-    CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" \
+    CPPFLAGS="-DSIZE_MAX=18446744073709551615UL -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include -DENABLE_LEGACY_NONAPI -DUSE_MATH_THREADS ${JAVA_CPPFLAGS}" \
+    CPP="${OHOS_CLANG} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${ICU_INSTALL}/include -I${RDEPS}/include" \
     CXXCPP="${OHOS_CLANGXX} -E --sysroot=$SYSROOT -I${HOMEBREW_PREFIX}/include -I${RDEPS}/include" 2>&1 | tee /storage/Users/currentUser/R-harmonyos/build/configure.log || true
 
 # Patch config.status to fix HarmonyOS filesystem incompatibilities:

@@ -83,10 +83,9 @@ for nf in ../../$PATCHES/new-files/*; do
             echo "    Created src/extra/ohos_stubs/$name"
             ;;
         Makefile.in)
-            if [ -f src/extra/ohos_stubs/Makefile.in ]; then
-                cp "$nf" src/extra/ohos_stubs/
-                echo "    Updated src/extra/ohos_stubs/Makefile.in"
-            fi
+            mkdir -p src/extra/ohos_stubs
+            cp "$nf" src/extra/ohos_stubs/
+            echo "    Created src/extra/ohos_stubs/Makefile.in"
             ;;
     esac
 done
