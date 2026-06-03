@@ -350,6 +350,10 @@ harmony_install("Seurat", repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN")
 # Bioconductor 包（自动安装 BiocManager + 传递 HarmonyOS 参数）
 harmony_install("DESeq2", bioc = TRUE)
 harmony_install(c("edgeR", "limma"), bioc = TRUE)
+
+# GitHub 包（自动安装 remotes + 传递 HarmonyOS 参数）
+harmony_install("satijalab/seurat-wrappers", github = TRUE)
+harmony_install("chris-mcginnis-ucsf/DoubletFinder", github = TRUE)
 ```
 
 `harmony_install()` 自动完成以下工作：

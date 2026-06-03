@@ -145,20 +145,31 @@ if (r_lib %in% .libPaths()) {
 # ---- harmony_install() ----
 harmony_install <- function(pkgs,
                              repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN",
-                             bioc = FALSE, ...) {
-    if (bioc) {
-        if (!requireNamespace("BiocManager", quietly = TRUE)) {
-            message("Installing BiocManager ...")
-            install.packages("BiocManager", repos = repos,
+                             bioc = FALSE, github = FALSE, ...) {
+    if (bioc || github) {
+        if (!requireNamespace("remotes", quietly = TRUE)) {
+            message("Installing remotes ...")
+            install.packages("remotes", repos = repos,
                              configure.args = "--host=aarch64-linux-ohos",
                              INSTALL_opts = "--no-test-load")
         }
+    }
+    if (bioc && !requireNamespace("BiocManager", quietly = TRUE)) {
+        message("Installing BiocManager ...")
+        install.packages("BiocManager", repos = repos,
+                         configure.args = "--host=aarch64-linux-ohos",
+                         INSTALL_opts = "--no-test-load")
     }
     for (pkg in pkgs) {
         message("Installing: ", pkg)
         tryCatch({
             if (bioc) {
                 BiocManager::install(pkg,
+                    configure.args = "--host=aarch64-linux-ohos",
+                    INSTALL_opts = "--no-test-load",
+                    ...)
+            } else if (github) {
+                remotes::install_github(pkg,
                     configure.args = "--host=aarch64-linux-ohos",
                     INSTALL_opts = "--no-test-load",
                     ...)
@@ -173,6 +184,9 @@ harmony_install <- function(pkgs,
             message("Retrying without configure.args: ", pkg)
             if (bioc) {
                 BiocManager::install(pkg,
+                    INSTALL_opts = "--no-test-load", ...)
+            } else if (github) {
+                remotes::install_github(pkg,
                     INSTALL_opts = "--no-test-load", ...)
             } else {
                 install.packages(pkg,
