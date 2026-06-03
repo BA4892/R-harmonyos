@@ -145,21 +145,40 @@ if (r_lib %in% .libPaths()) {
 # ---- harmony_install() ----
 harmony_install <- function(pkgs,
                              repos = "https://mirrors.tuna.tsinghua.edu.cn/CRAN",
-                             ...) {
+                             bioc = FALSE, ...) {
+    if (bioc) {
+        if (!requireNamespace("BiocManager", quietly = TRUE)) {
+            message("Installing BiocManager ...")
+            install.packages("BiocManager", repos = repos,
+                             configure.args = "--host=aarch64-linux-ohos",
+                             INSTALL_opts = "--no-test-load")
+        }
+    }
     for (pkg in pkgs) {
         message("Installing: ", pkg)
         tryCatch({
-            install.packages(pkg,
-                repos = repos,
-                configure.args = "--host=aarch64-linux-ohos",
-                INSTALL_opts = "--no-test-load",
-                ...)
+            if (bioc) {
+                BiocManager::install(pkg,
+                    configure.args = "--host=aarch64-linux-ohos",
+                    INSTALL_opts = "--no-test-load",
+                    ...)
+            } else {
+                install.packages(pkg,
+                    repos = repos,
+                    configure.args = "--host=aarch64-linux-ohos",
+                    INSTALL_opts = "--no-test-load",
+                    ...)
+            }
         }, error = function(e) {
             message("Retrying without configure.args: ", pkg)
-            install.packages(pkg,
-                repos = repos,
-                INSTALL_opts = "--no-test-load",
-                ...)
+            if (bioc) {
+                BiocManager::install(pkg,
+                    INSTALL_opts = "--no-test-load", ...)
+            } else {
+                install.packages(pkg,
+                    repos = repos,
+                    INSTALL_opts = "--no-test-load", ...)
+            }
         })
     }
     # Auto-patch Rcpp undoRmath.h when Rcpp is installed
